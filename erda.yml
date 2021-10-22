@@ -17,6 +17,8 @@ services:
       COLLECTOR_AUTH_USERNAME: collector
       OUTPUT_BATCH_TRIGGER_TIMEOUT: 10s
       OUTPUT_BATCH_TRIGGER_CONTENT_LIMIT_BYTES: 8388608
+      # trigger operator
+      UPGRADE_1_4_0: 0
     resources:
       cpu: ${request_cpu:0.2}
       mem: ${request_mem:512}

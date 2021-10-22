@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"github.com/fluent/fluent-bit-go/output"
+	"github.com/sirupsen/logrus"
 )
 
 var (
@@ -103,7 +104,12 @@ func (o *Output) AddEvent(event *Event) int {
 func (o *Output) Process(timestamp time.Time, record map[interface{}]interface{}) (*LogEvent, error) {
 	offset, err := getAndConvert("offset", record)
 	if err != nil {
-		return nil, err
+		if errors.Is(err, ErrKeyMustExist) {
+			logrus.Infof("can not get key offset: %s", err)
+			offset = uint64(0)
+		} else {
+			return nil, err
+		}
 	}
 
 	stream, err := getAndConvert("stream", record)
@@ -125,7 +131,7 @@ func (o *Output) Process(timestamp time.Time, record map[interface{}]interface{}
 
 	lg := &LogEvent{
 		Stream:    bs2str(stream.([]byte)),
-		Content:   bs2str(content.([]byte)),
+		Content:   bs2str(stripNewLine(content.([]byte))),
 		Offset:    offset.(uint64),
 		Timestamp: t.UnixNano(),
 	}
@@ -136,6 +142,14 @@ func (o *Output) Process(timestamp time.Time, record map[interface{}]interface{}
 	}
 
 	return lg, nil
+}
+
+func stripNewLine(data []byte) []byte {
+	l := len(data)
+	if l > 0 && data[l-1] == '\n' {
+		return data[:l-1]
+	}
+	return data
 }
 
 // TODO auto_retry_requests
@@ -226,5 +240,5 @@ func (o *Output) Close() error {
 	if o.cancelFunc != nil {
 		o.cancelFunc()
 	}
-	return nil
+	return o.cache.dockerConfig.Close()
 }
