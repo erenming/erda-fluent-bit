@@ -70,8 +70,8 @@ COPY conf/fluent-bit.conf \
      conf/plugins.conf \
      /fluent-bit/etc/
 
-COPY --from=gobuilder /build/out_erda.so /fluent-bit/etc/
-RUN ldd /fluent-bit/etc/out_erda.so
+COPY --from=gobuilder /build/out_erda.so /fluent-bit/bin/
+RUN ldd /fluent-bit/bin/out_erda.so
 
 COPY --from=amd64/busybox:1.31.1 /bin/busybox /bin/busybox
 
@@ -128,4 +128,4 @@ COPY --from=builder /usr/local/bin/ /usr/local/bin/
 COPY --from=builder /bin/busybox /bin/
 
 # Entry point
-CMD ["/fluent-bit/bin/fluent-bit", "-c", "/fluent-bit/etc/fluent-bit.conf"]
+CMD ["./fluent-bit/bin/fluent-bit", "-c", "/fluent-bit/etc/fluent-bit.conf"]

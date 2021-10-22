@@ -2,6 +2,7 @@ package main
 
 import (
 	"fmt"
+	"os"
 	"time"
 	"unsafe"
 
@@ -24,14 +25,21 @@ const (
 	defaultEventLimit             = 50
 	defaultTriggerTimeout         = time.Second * 5
 	defaultNetWriteBytesPerSecond = 10 * 1024 * 1024 // 10MB/s
-	defaultEventContentBytesLimit = 4 * 1024 * 1024  // 4MB
+	defaultEventContentBytesLimit = 8 * 1024 * 1024  // 8MB, ~3MB(after compressed)
 )
 
 func defaultConfig() outerda.Config {
+	erdaURL := "http://" + os.Getenv("COLLECTOR_ADDR")
+	if os.Getenv("DICE_IS_EDGE") == "true" {
+		erdaURL = os.Getenv("COLLECTOR_PUBLIC_URL")
+	}
+
 	return outerda.Config{
 		RemoteConfig: outerda.RemoteConfig{
-			JobPath:              "/collector/logs/job",
-			ContainerPath:        "/collector/logs/container",
+			Headers: map[string]string{},
+			URL:                  erdaURL,
+			JobPath:              "/collect/logs/job",
+			ContainerPath:        "/collect/logs/container",
 			RequestTimeout:       time.Second * 10,
 			KeepAliveIdleTimeout: time.Second * 60,
 		},

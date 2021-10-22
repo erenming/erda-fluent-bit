@@ -26,7 +26,7 @@ type Config struct {
 	BatchEventContentLimitBytes int `fluentbit:"batch_event_content_limit_bytes"`
 	// 触发flush的时间阈值
 	BatchTriggerTimeout time.Duration `fluentbit:"batch_trigger_timeout"`
-	// 最大每秒网络输出阈值
+	// TODO 最大每秒网络输出阈值
 	BatchNetWriteBytesPerSecond int `fluentbit:"batch_net_write_bytes_per_second"`
 }
 

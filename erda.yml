@@ -15,6 +15,8 @@ services:
     envs:
       COLLECTOR_AUTH_PASSWORD: G$9767bP32drYFPWrK4XMLRMTatiM6cU
       COLLECTOR_AUTH_USERNAME: collector
+      OUTPUT_BATCH_TRIGGER_TIMEOUT: 10s
+      OUTPUT_BATCH_TRIGGER_CONTENT_LIMIT_BYTES: 8388608
     resources:
       cpu: ${request_cpu:0.2}
       mem: ${request_mem:512}
