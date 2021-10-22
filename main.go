@@ -45,7 +45,7 @@ func defaultConfig() outerda.Config {
 		},
 		CompressLevel:               3,
 		DockerContainerRootPath:     "/var/lib/docker/containers",
-		DockerConfigSyncInterval:    time.Second * 10,
+		DockerConfigSyncInterval:    time.Second * 20,
 		BatchEventLimit:             defaultEventLimit,
 		BatchTriggerTimeout:         defaultTriggerTimeout,
 		BatchNetWriteBytesPerSecond: defaultNetWriteBytesPerSecond,
