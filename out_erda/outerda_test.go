@@ -58,7 +58,6 @@ func TestOutput_Process(t *testing.T) {
 				ID:        "b2a9cb046a8275c57307cad907ef0a5553a78d6f4c1da7186566555d1a5383dd",
 				Stream:    "stderr",
 				Content:   "time=\"2021-10-12 16:00:14.130242184\" level=info msg=\"finish to run the task: executor K8S/MARATHONFORTERMINUSDEV (id: 1120384ca1, action: 5)\"",
-				Offset:    3783959,
 				Timestamp: 1634025614130323755,
 				Tags: map[string]string{
 					"pod_name":              "scheduler-3feb156fc4-cf6b45b89-cwh5s",
@@ -91,7 +90,6 @@ func TestOutput_Process(t *testing.T) {
 				ID:        "pipeline-task-1024",
 				Stream:    "stderr",
 				Content:   "time=\"2021-10-12 16:00:14.130242184\" level=info msg=\"finish to run the task: executor K8S/MARATHONFORTERMINUSDEV (id: 1120384ca1, action: 5)\"",
-				Offset:    3783959,
 				Timestamp: 1634025614130323755,
 				Tags: map[string]string{
 					"pod_name":              "scheduler-3feb156fc4-cf6b45b89-cwh5s",
@@ -119,7 +117,7 @@ func TestOutput_Process(t *testing.T) {
 			args: args{
 				timestamp: mockTimestamp,
 				record: map[interface{}]interface{}{
-					"hello": "world",
+					"hello": []byte("world"),
 				},
 			},
 			want:    nil,
@@ -169,7 +167,6 @@ func TestOutput_Process(t *testing.T) {
 				ID:        "b2a9cb046a8275c57307cad907ef0a5553a78d6f4c1da7186566555d1a5383dd",
 				Stream:    "stderr",
 				Content:   "time=\"2021-10-12 16:00:14.130242184\" level=info msg=\"finish to run the task: executor K8S/MARATHONFORTERMINUSDEV (id: 1120384ca1, action: 5)\"",
-				Offset:    0,
 				Timestamp: 1634025614130323755,
 				Tags: map[string]string{
 					"pod_name":              "scheduler-3feb156fc4-cf6b45b89-cwh5s",
@@ -239,7 +236,6 @@ func mockRecord() map[interface{}]interface{} {
 			"TERMINUS_KEY": []byte("z179399ebf5ab436c937479640aec4dfa"),
 		},
 		"time":   []byte("2021-10-12T08:00:14.130323755Z"),
-		"offset": uint64(3783959),
 		"kubernetes": map[interface{}]interface{}{
 			"pod_name":       []byte("scheduler-3feb156fc4-cf6b45b89-cwh5s"),
 			"namespace_name": []byte("project-387-dev"),

@@ -1,7 +1,6 @@
 package main
 
 import (
-	"fmt"
 	"os"
 	"time"
 	"unsafe"
@@ -36,7 +35,7 @@ func defaultConfig() outerda.Config {
 
 	return outerda.Config{
 		RemoteConfig: outerda.RemoteConfig{
-			Headers: map[string]string{},
+			Headers:              map[string]string{},
 			URL:                  erdaURL,
 			JobPath:              "/collect/logs/job",
 			ContainerPath:        "/collect/logs/container",
@@ -71,7 +70,6 @@ func FLBPluginInit(plugin unsafe.Pointer) int {
 		return output.FLB_ERROR
 	}
 
-	// todo debug
 	logrus.Infof("cfg: %+v", cfg)
 
 	outErdaInstance = outerda.NewOutput(cfg)
@@ -108,9 +106,18 @@ func FLBPluginFlush(data unsafe.Pointer, length C.int, tag *C.char) int {
 		case uint64:
 			timestamp = time.Unix(int64(t), 0)
 		default:
-			fmt.Println("time provided invalid, defaulting to now.")
 			timestamp = time.Now()
 		}
+
+		// data, err := outerda.MarshalRecord(record)
+		// if err != nil {
+		// 	logrus.Error(err)
+		// 	return output.FLB_RETRY
+		// }
+		// if _, ok := record["time"]; !ok {
+		// 	fmt.Printf("[%d] %s [%s], \n", count, C.GoString(tag), timestamp.String())
+		// 	fmt.Printf("\tdata: %s\n", string(data))
+		// }
 
 		if val := outErdaInstance.AddEvent(&outerda.Event{Record: record, Timestamp: timestamp}); val != output.FLB_OK {
 			return val

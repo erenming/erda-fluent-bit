@@ -8,6 +8,14 @@ values:
     replicas: 1
     request_cpu: 0.1
     request_mem: 128
+  staging:
+    platform_data_root: /data/staing
+  development:
+    platform_data_root: /data/staing
+    docker_data_root: /data/docker/data
+  test:
+    platform_data_root: /data/test
+
 envs: {}
 services:
   fluent-bit:

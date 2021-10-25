@@ -8,7 +8,6 @@ import (
 	"time"
 
 	"github.com/fluent/fluent-bit-go/output"
-	"github.com/sirupsen/logrus"
 )
 
 var (
@@ -102,28 +101,23 @@ func (o *Output) AddEvent(event *Event) int {
 }
 
 func (o *Output) Process(timestamp time.Time, record map[interface{}]interface{}) (*LogEvent, error) {
-	offset, err := getAndConvert("offset", record)
-	if err != nil {
-		if errors.Is(err, ErrKeyMustExist) {
-			logrus.Infof("can not get key offset: %s", err)
-			offset = uint64(0)
-		} else {
-			return nil, err
-		}
-	}
+	// offset, err := getAndConvert("offset", record, uint64(0))
+	// if err != nil {
+	// 	return nil, err
+	// }
 
-	stream, err := getAndConvert("stream", record)
+	stream, err := getAndConvert("stream", record, []byte("stdout"))
 	if err != nil {
 		return nil, err
 	}
-	content, err := getAndConvert("log", record)
+	content, err := getAndConvert("log", record, nil)
 	if err != nil {
 		return nil, err
 	}
 
 	var t time.Time
 	if val, err := getTime(record); err != nil {
-		LogInfo("cannot get time from Record", err)
+		LogInfo("cannot get time from record", err)
 		t = timestamp
 	} else {
 		t = val
@@ -132,13 +126,12 @@ func (o *Output) Process(timestamp time.Time, record map[interface{}]interface{}
 	lg := &LogEvent{
 		Stream:    bs2str(stream.([]byte)),
 		Content:   bs2str(stripNewLine(content.([]byte))),
-		Offset:    offset.(uint64),
 		Timestamp: t.UnixNano(),
 	}
 
 	err = o.enrichWithMetadata(lg, record)
 	if err != nil {
-		LogInfo("some error happened when enrich metadata", err)
+		LogInfo("enrich metadata error. log_path: "+getLogPath(record), err)
 	}
 
 	return lg, nil
@@ -152,22 +145,13 @@ func stripNewLine(data []byte) []byte {
 	return data
 }
 
-// TODO auto_retry_requests
-func (o *Output) Send(lg *LogEvent) error {
-	data, err := o.compress()
-	if err != nil {
-		return fmt.Errorf("compress data: %w", err)
-	}
-	return o.doHTTPRequest(data)
-}
-
 type nestedKubernetes struct {
-	PodName        string `mapstructure:"pod_name"`
-	NamespaceName  string `mapstructure:"namespace"`
-	PodID          string `mapstructure:"pod_id"`
-	DockerID       string `mapstructure:"docker_id"`
-	ContainerImage string `mapstructure:"container_image"`
-	ContainerName  string `mapstructure:"container_name"`
+	PodName        string
+	NamespaceName  string
+	PodID          string
+	DockerID       string
+	ContainerImage string
+	ContainerName  string
 }
 
 func unmarshalNestedKubernetes(data interface{}) (*nestedKubernetes, error) {
@@ -175,14 +159,26 @@ func unmarshalNestedKubernetes(data interface{}) (*nestedKubernetes, error) {
 	if !ok {
 		return nil, fmt.Errorf("must be map[string]string")
 	}
-	return &nestedKubernetes{
-		PodName:        bs2str(mm["pod_name"].([]byte)),
-		NamespaceName:  bs2str(mm["namespace_name"].([]byte)),
-		PodID:          bs2str(mm["pod_id"].([]byte)),
-		DockerID:       bs2str(mm["docker_id"].([]byte)),
-		ContainerImage: bs2str(mm["container_image"].([]byte)),
-		ContainerName:  bs2str(mm["container_name"].([]byte)),
-	}, nil
+	nk := &nestedKubernetes{}
+	if v, ok := mm["pod_name"]; ok {
+		nk.PodName = bs2str(v.([]byte))
+	}
+	if v, ok := mm["namespace_name"]; ok {
+		nk.NamespaceName = bs2str(v.([]byte))
+	}
+	if v, ok := mm["pod_id"]; ok {
+		nk.PodID = bs2str(v.([]byte))
+	}
+	if v, ok := mm["docker_id"]; ok {
+		nk.DockerID = bs2str(v.([]byte))
+	}
+	if v, ok := mm["container_image"]; ok {
+		nk.ContainerImage = bs2str(v.([]byte))
+	}
+	if v, ok := mm["container_name"]; ok {
+		nk.ContainerName = bs2str(v.([]byte))
+	}
+	return nk, nil
 }
 
 func (o *Output) enrichWithMetadata(lg *LogEvent, record map[interface{}]interface{}) error {
@@ -191,7 +187,6 @@ func (o *Output) enrichWithMetadata(lg *LogEvent, record map[interface{}]interfa
 		return fmt.Errorf("key kubernetes: %w", ErrKeyMustExist)
 	}
 
-	// todo no copy way
 	nk, err := unmarshalNestedKubernetes(k8sInfo)
 	if err != nil {
 		return fmt.Errorf("decode nested kubernetes: %w", err)

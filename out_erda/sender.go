@@ -20,7 +20,7 @@ type LogEvent struct {
 	ID        string            `json:"id"`
 	Stream    string            `json:"stream"`
 	Content   string            `json:"content"`
-	Offset    uint64            `json:"offset"`
+	// Offset    uint64            `json:"offset"`
 	Timestamp int64             `json:"timestamp"`
 	Tags      map[string]string `json:"tags"`
 }
