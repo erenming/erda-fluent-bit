@@ -17,8 +17,7 @@ services:
       COLLECTOR_AUTH_USERNAME: collector
       OUTPUT_BATCH_TRIGGER_TIMEOUT: 10s
       OUTPUT_BATCH_TRIGGER_CONTENT_LIMIT_BYTES: 8388608
-      # trigger operator
-      UPGRADE_1_4_0: 0
+      DOCKER_CONTAINER_ROOT_PATH: ${docker_data_root:/var/lib/docker}/containers
     resources:
       cpu: ${request_cpu:0.2}
       mem: ${request_mem:512}
@@ -28,9 +27,8 @@ services:
         mode: container
     binds:
       - ${docker_data_root:/var/lib/docker}/containers:${docker_data_root:/var/lib/docker}/containers:ro
+      - ${platform_data_root:/data}/spot-v2/fluent-bit:/data/spot/fluent-bit:rw
       - /var/log:/var/log:ro
-      - ${platform_data_root:/data}/spot-v2/filebeat:/data/spot/fluent-bit:rw
-      #- ${platform_data_root:/data}/kube-apiserver/audit-logs:/data/kube-apiserver/audit-logs:ro
     deployments:
       replicas: 1
       workload: per_node
