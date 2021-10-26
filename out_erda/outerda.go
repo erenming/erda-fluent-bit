@@ -201,7 +201,7 @@ func (o *Output) enrichWithMetadata(lg *LogEvent, record map[interface{}]interfa
 	lg.Tags["pod_id"] = nk.PodID
 	lg.Tags["container_id"] = nk.DockerID
 	// lg.Tags["container_image"] = nk.ContainerImage
-	// lg.Tags["container_name"] = nk.ContainerName
+	lg.Tags["container_name"] = nk.ContainerName
 
 	o.cache.EnrichMetadataWithContainerEnv(nk.DockerID, lg)
 
