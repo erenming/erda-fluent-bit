@@ -18,7 +18,6 @@ func TestBatchSender_SendLogEvent(t *testing.T) {
 	type fields struct {
 		dataNum                     int
 		batchEventSize              int
-		timeoutTrigger              time.Duration
 		waitDuration                time.Duration
 		BatchEventLimit             int
 		BatchEventContentLimitBytes int
@@ -37,7 +36,6 @@ func TestBatchSender_SendLogEvent(t *testing.T) {
 			fields: fields{
 				dataNum:                     1000,
 				batchEventSize:              10,
-				timeoutTrigger:              time.Second,
 				waitDuration:                time.Second * 2,
 				BatchEventLimit:             10,
 				BatchEventContentLimitBytes: math.MaxInt64,
@@ -52,7 +50,6 @@ func TestBatchSender_SendLogEvent(t *testing.T) {
 			fields: fields{
 				dataNum:                     1000,
 				batchEventSize:              10,
-				timeoutTrigger:              time.Second,
 				waitDuration:                time.Second * 2,
 				BatchEventLimit:             1001,
 				BatchEventContentLimitBytes: len(mockLogEvent.Content) * 10,
@@ -62,21 +59,6 @@ func TestBatchSender_SendLogEvent(t *testing.T) {
 			},
 			want: 100,
 		},
-		{
-			name: "timeout trigger mode",
-			fields: fields{
-				dataNum:                     1,
-				batchEventSize:              10,
-				timeoutTrigger:              time.Second,
-				waitDuration:                time.Second * 2,
-				BatchEventLimit:             10,
-				BatchEventContentLimitBytes: math.MaxInt64,
-			},
-			args: args{
-				lg: mockLogEvent,
-			},
-			want: 1,
-		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -84,7 +66,6 @@ func TestBatchSender_SendLogEvent(t *testing.T) {
 			bs := NewBatchSender(batchConfig{
 				send2remoteServer:           mm.SendContainerLog,
 				BatchEventLimit:             tt.fields.BatchEventLimit,
-				BatchTriggerTimeout:         tt.fields.timeoutTrigger,
 				BatchEventContentLimitBytes: tt.fields.BatchEventContentLimitBytes,
 			})
 			for i := 0; i < tt.fields.dataNum; i++ {
@@ -93,34 +74,12 @@ func TestBatchSender_SendLogEvent(t *testing.T) {
 					t.Errorf("get error: %s", err)
 				}
 			}
-			time.Sleep(tt.fields.waitDuration)
-
+			assert.Nil(t, bs.FlushAll())
 			assert.Equal(t, tt.want, mm.sendCount)
 			assert.Equal(t, 0, bs.currentIndex)
-			assert.Equal(t, 0, bs.currentContentSize)
+			assert.Equal(t, 0, bs.currentContentSizeBytes)
 		})
 	}
-}
-
-func TestTimeoutTriggerTwice(t *testing.T) {
-	// timeout trigger twice
-	mm := mockRemote{}
-	bs := NewBatchSender(batchConfig{
-		send2remoteServer:           mm.SendContainerLog,
-		BatchEventLimit:             10,
-		BatchTriggerTimeout:         time.Second,
-		BatchEventContentLimitBytes: len(mockLogEvent.Content) * 10,
-	})
-	t.Log("send first event")
-	_ = bs.SendLogEvent(mockLogEvent)
-	time.Sleep(time.Second * 3)
-	assert.Equal(t, 0, bs.currentIndex)
-
-	t.Log("send second event")
-	_ = bs.SendLogEvent(mockLogEvent)
-	time.Sleep(time.Second * 3)
-	assert.Equal(t, 2, mm.sendCount)
-	assert.Equal(t, 0, bs.currentIndex)
 }
 
 var mockLogEvent = &LogEvent{

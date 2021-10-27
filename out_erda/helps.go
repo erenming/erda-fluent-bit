@@ -3,7 +3,6 @@ package outerda
 import (
 	"encoding/base64"
 	"fmt"
-	"strings"
 	"time"
 	"unsafe"
 
@@ -12,26 +11,6 @@ import (
 
 func bs2str(bs []byte) string {
 	return *(*string)(unsafe.Pointer(&bs))
-}
-
-func PrettyRecord(record map[interface{}]interface{}, depth int) {
-	for k, v := range record {
-		fmt.Printf(strings.Repeat("\t", depth)+"k: %s, ", k)
-		switch v.(type) {
-		case []byte:
-			fmt.Printf("v: %s\n", string(v.([]byte)))
-		case float64:
-			fmt.Printf("v: %f\n", v.(float64))
-		case uint64:
-			fmt.Printf("v: %d\n", v.(uint64))
-		case string:
-			fmt.Printf("v: %s\n", v)
-		case map[interface{}]interface{}:
-			fmt.Println()
-			PrettyRecord(record[k].(map[interface{}]interface{}), depth+1)
-		default:
-		}
-	}
 }
 
 type RecordStruct struct {

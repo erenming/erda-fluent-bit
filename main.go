@@ -21,10 +21,9 @@ func init() {
 var outErdaInstance *outerda.Output
 
 const (
-	defaultEventLimit             = 50
-	defaultTriggerTimeout         = time.Second * 5
+	defaultEventLimit             = 5000
 	defaultNetWriteBytesPerSecond = 10 * 1024 * 1024 // 10MB/s
-	defaultEventContentBytesLimit = 8 * 1024 * 1024  // 8MB, ~3MB(after compressed)
+	defaultEventContentBytesLimit = 8 * 1024 * 1024  // 8MB, ~= 3MB(after compressed)
 )
 
 func defaultConfig() outerda.Config {
@@ -46,7 +45,6 @@ func defaultConfig() outerda.Config {
 		DockerContainerRootPath:     "/var/lib/docker/containers",
 		DockerConfigSyncInterval:    time.Second * 20,
 		BatchEventLimit:             defaultEventLimit,
-		BatchTriggerTimeout:         defaultTriggerTimeout,
 		BatchNetWriteBytesPerSecond: defaultNetWriteBytesPerSecond,
 		BatchEventContentLimitBytes: defaultEventContentBytesLimit,
 	}
@@ -83,7 +81,7 @@ func FLBPluginInit(plugin unsafe.Pointer) int {
 
 //export FLBPluginFlush
 func FLBPluginFlush(data unsafe.Pointer, length C.int, tag *C.char) int {
-	var count int
+	// var count int
 	var ret int
 	var ts interface{}
 	var record map[interface{}]interface{}
@@ -120,10 +118,17 @@ func FLBPluginFlush(data unsafe.Pointer, length C.int, tag *C.char) int {
 		// }
 
 		if val := outErdaInstance.AddEvent(&outerda.Event{Record: record, Timestamp: timestamp}); val != output.FLB_OK {
+			outErdaInstance.Reset()
 			return val
 		}
 
-		count++
+		// count++
+	}
+	err := outErdaInstance.Flush()
+	if err != nil {
+		outerda.LogError("Flush error", err)
+		outErdaInstance.Reset()
+		return output.FLB_RETRY
 	}
 
 	// Return options:
@@ -136,6 +141,9 @@ func FLBPluginFlush(data unsafe.Pointer, length C.int, tag *C.char) int {
 
 //export FLBPluginExit
 func FLBPluginExit() int {
+	if outErdaInstance == nil {
+		return output.FLB_OK
+	}
 	if err := outErdaInstance.Close(); err != nil {
 		outerda.LogError("close output failed", err)
 	}

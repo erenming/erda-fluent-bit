@@ -23,8 +23,8 @@ services:
     envs:
       COLLECTOR_AUTH_PASSWORD: G$9767bP32drYFPWrK4XMLRMTatiM6cU
       COLLECTOR_AUTH_USERNAME: collector
-      OUTPUT_BATCH_TRIGGER_TIMEOUT: 10s
-      OUTPUT_BATCH_TRIGGER_CONTENT_LIMIT_BYTES: 8388608
+      OUTPUT_BATCH_EVENT_LIMIT: 5000
+      OUTPUT_BATCH_TRIGGER_CONTENT_LIMIT_BYTES: 10485760
       DOCKER_CONTAINER_ROOT_PATH: ${docker_data_root:/var/lib/docker}/containers
     resources:
       cpu: ${request_cpu:0.2}

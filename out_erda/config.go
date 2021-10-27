@@ -19,13 +19,10 @@ type Config struct {
 	DockerContainerRootPath  string        `fluentbit:"docker_container_root_path"`
 	DockerConfigSyncInterval time.Duration `fluentbit:"docker_config_sync_interval"`
 
-
 	// 日志事件的最大个数限制
 	BatchEventLimit int `fluentbit:"batch_event_limit"`
 	// 日志内容大小总和阈值
 	BatchEventContentLimitBytes int `fluentbit:"batch_event_content_limit_bytes"`
-	// 触发flush的时间阈值
-	BatchTriggerTimeout time.Duration `fluentbit:"batch_trigger_timeout"`
 	// TODO 最大每秒网络输出阈值
 	BatchNetWriteBytesPerSecond int `fluentbit:"batch_net_write_bytes_per_second"`
 }

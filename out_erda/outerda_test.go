@@ -70,6 +70,7 @@ func TestOutput_Process(t *testing.T) {
 					"msp_env_id":            "abc111",
 					"cluster_name":          "terminus-dev",
 					"application_name":      "scheduler",
+					"container_name":        "scheduler",
 				},
 			},
 			wantErr: false,
@@ -103,6 +104,7 @@ func TestOutput_Process(t *testing.T) {
 					"cluster_name":          "terminus-dev",
 					"application_name":      "scheduler",
 					"terminus_define_tag":   "pipeline-task-1024",
+					"container_name":        "scheduler",
 				},
 			},
 			wantErr: false,
@@ -139,7 +141,7 @@ func TestOutput_Process(t *testing.T) {
 						"TERMINUS_APP": []byte("scheduler"),
 						"TERMINUS_KEY": []byte("z179399ebf5ab436c937479640aec4dfa"),
 					},
-					"time":   []byte("2021-10-12T08:00:14.130323755Z"),
+					"time": []byte("2021-10-12T08:00:14.130323755Z"),
 					"kubernetes": map[interface{}]interface{}{
 						"pod_name":       []byte("scheduler-3feb156fc4-cf6b45b89-cwh5s"),
 						"namespace_name": []byte("project-387-dev"),
@@ -162,7 +164,7 @@ func TestOutput_Process(t *testing.T) {
 					},
 				},
 			},
-			want:    &LogEvent{
+			want: &LogEvent{
 				Source:    "container",
 				ID:        "b2a9cb046a8275c57307cad907ef0a5553a78d6f4c1da7186566555d1a5383dd",
 				Stream:    "stderr",
@@ -179,6 +181,7 @@ func TestOutput_Process(t *testing.T) {
 					"msp_env_id":            "abc111",
 					"cluster_name":          "terminus-dev",
 					"application_name":      "scheduler",
+					"container_name":        "scheduler",
 				},
 			},
 			wantErr: false,
@@ -235,7 +238,7 @@ func mockRecord() map[interface{}]interface{} {
 			"TERMINUS_APP": []byte("scheduler"),
 			"TERMINUS_KEY": []byte("z179399ebf5ab436c937479640aec4dfa"),
 		},
-		"time":   []byte("2021-10-12T08:00:14.130323755Z"),
+		"time": []byte("2021-10-12T08:00:14.130323755Z"),
 		"kubernetes": map[interface{}]interface{}{
 			"pod_name":       []byte("scheduler-3feb156fc4-cf6b45b89-cwh5s"),
 			"namespace_name": []byte("project-387-dev"),

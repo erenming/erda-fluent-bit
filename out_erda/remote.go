@@ -49,7 +49,7 @@ func newCollectorService(cfg RemoteConfig) *collectorService {
 		},
 		Timeout: cfg.RequestTimeout,
 	}
-	cs :=  &collectorService{
+	cs := &collectorService{
 		cfg:    cfg,
 		client: client,
 	}
@@ -65,7 +65,7 @@ func (c *collectorService) SendJobLog(data []byte) error {
 	return c.sendWithPath(data, c.cfg.JobPath)
 }
 
-func (c *collectorService) BasicAuth()  {
+func (c *collectorService) BasicAuth() {
 	if c.cfg.BasicAuthPassword != "" && c.cfg.BasicAuthUsername != "" {
 		token := basicAuth(c.cfg.BasicAuthUsername, c.cfg.BasicAuthPassword)
 		c.cfg.Headers["Authorization"] = "Basic " + token

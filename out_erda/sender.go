@@ -5,10 +5,8 @@ import (
 	"compress/gzip"
 	"fmt"
 	"io"
-	"time"
 
 	jsoniter "github.com/json-iterator/go"
-	"github.com/sirupsen/logrus"
 )
 
 var (
@@ -16,10 +14,10 @@ var (
 )
 
 type LogEvent struct {
-	Source    string            `json:"source"`
-	ID        string            `json:"id"`
-	Stream    string            `json:"stream"`
-	Content   string            `json:"content"`
+	Source  string `json:"source"`
+	ID      string `json:"id"`
+	Stream  string `json:"stream"`
+	Content string `json:"content"`
 	// Offset    uint64            `json:"offset"`
 	Timestamp int64             `json:"timestamp"`
 	Tags      map[string]string `json:"tags"`
@@ -28,7 +26,6 @@ type LogEvent struct {
 type batchConfig struct {
 	send2remoteServer           func(data []byte) error
 	BatchEventLimit             int
-	BatchTriggerTimeout         time.Duration
 	BatchNetWriteBytesPerSecond int
 	BatchEventContentLimitBytes int
 	GzipLevel                   int
@@ -41,7 +38,6 @@ type gzipper struct {
 
 func NewBatchSender(cfg batchConfig) *BatchSender {
 	bs := &BatchSender{
-		timeTrigger:   time.NewTimer(cfg.BatchTriggerTimeout),
 		batchLogEvent: make([]*LogEvent, cfg.BatchEventLimit),
 		cfg:           cfg,
 	}
@@ -54,64 +50,48 @@ func NewBatchSender(cfg batchConfig) *BatchSender {
 		}
 	}
 
-	go bs.timerCheck()
 	return bs
 }
 
 type BatchSender struct {
-	// todo WAL
 	compressor    *gzipper
 	batchLogEvent []*LogEvent
 	cfg           batchConfig
 
-	timeTrigger        *time.Timer
-	currentIndex       int
-	currentContentSize int
+	currentIndex            int
+	currentContentSizeBytes int
 }
 
 func (bs *BatchSender) SendLogEvent(lg *LogEvent) error {
 	exceedEventLimit := bs.currentIndex >= bs.cfg.BatchEventLimit
-	exceedContent := (bs.currentContentSize + len(lg.Content)) > bs.cfg.BatchEventContentLimitBytes
+	exceedContent := (bs.currentContentSizeBytes + len(lg.Content)) > bs.cfg.BatchEventContentLimitBytes
 
 	if exceedEventLimit || exceedContent {
 		err := bs.flush(bs.batchLogEvent[:bs.currentIndex])
 		if err != nil {
 			return err
 		}
-		bs.reset()
+		bs.Reset()
 	}
 
 	bs.batchLogEvent[bs.currentIndex] = lg
-	bs.currentContentSize += len(lg.Content)
+	bs.currentContentSizeBytes += len(lg.Content)
 	bs.currentIndex++
 	return nil
 }
 
-func (bs *BatchSender) timerCheck() {
-	for {
-		select {
-		case <-bs.timeTrigger.C:
-			logrus.Debugf("timeTrigger trigger started")
-			for {
-				err := bs.flush(bs.batchLogEvent[:bs.currentIndex])
-				if err != nil {
-					LogError("timeTrigger triggered flush failed, retry after 5 seconds", err)
-					time.Sleep(time.Second * 5)
-				} else {
-					break
-				}
-			}
-			bs.reset()
-			// todo stop
-		}
+func (bs *BatchSender) FlushAll() error {
+	err := bs.flush(bs.batchLogEvent[:bs.currentIndex])
+	if err != nil {
+		return err
 	}
-
+	bs.Reset()
+	return nil
 }
 
-func (bs *BatchSender) reset() {
+func (bs *BatchSender) Reset() {
 	bs.currentIndex = 0
-	bs.currentContentSize = 0
-	bs.timeTrigger.Reset(bs.cfg.BatchTriggerTimeout)
+	bs.currentContentSizeBytes = 0
 }
 
 func (bs *BatchSender) flush(data []*LogEvent) error {
@@ -145,10 +125,10 @@ func (bs *BatchSender) compress(data []byte) ([]byte, error) {
 		bs.compressor.writer.Reset(bs.compressor.buf)
 	}()
 	if _, err := bs.compressor.writer.Write(data); err != nil {
-		return nil, fmt.Errorf("gizp write data: %w",err)
+		return nil, fmt.Errorf("gizp write data: %w", err)
 	}
 	if err := bs.compressor.writer.Flush(); err != nil {
-		return nil, fmt.Errorf("gzip flush data: %w",err)
+		return nil, fmt.Errorf("gzip flush data: %w", err)
 	}
 	if err := bs.compressor.writer.Close(); err != nil {
 		return nil, fmt.Errorf("gzip close: %w", err)

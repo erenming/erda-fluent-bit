@@ -43,7 +43,6 @@ func NewOutput(cfg Config) *Output {
 		cache:         newMetadataCache(cfg.DockerContainerRootPath, cfg.ContainerEnvInclude, cfg.DockerConfigSyncInterval),
 		batchContainer: NewBatchSender(batchConfig{
 			BatchEventLimit:             cfg.BatchEventLimit,
-			BatchTriggerTimeout:         cfg.BatchTriggerTimeout,
 			BatchNetWriteBytesPerSecond: cfg.BatchNetWriteBytesPerSecond,
 			BatchEventContentLimitBytes: cfg.BatchEventContentLimitBytes,
 			send2remoteServer:           svc.SendContainerLog,
@@ -51,7 +50,6 @@ func NewOutput(cfg Config) *Output {
 		}),
 		batchJob: NewBatchSender(batchConfig{
 			BatchEventLimit:             cfg.BatchEventLimit / 4,
-			BatchTriggerTimeout:         2 * time.Second,
 			BatchNetWriteBytesPerSecond: cfg.BatchNetWriteBytesPerSecond,
 			BatchEventContentLimitBytes: cfg.BatchEventContentLimitBytes / 4,
 			send2remoteServer:           svc.SendJobLog,
@@ -98,6 +96,23 @@ func (o *Output) AddEvent(event *Event) int {
 	}
 
 	return output.FLB_OK
+}
+
+func (o *Output) Flush() error {
+	err := o.batchContainer.FlushAll()
+	if err != nil {
+		return fmt.Errorf("batchContainer flush error: %w", err)
+	}
+	err = o.batchJob.FlushAll()
+	if err != nil {
+		return fmt.Errorf("batchJob flush error: %w", err)
+	}
+	return nil
+}
+
+func (o *Output) Reset() {
+	o.batchContainer.Reset()
+	o.batchJob.Reset()
 }
 
 func (o *Output) Process(timestamp time.Time, record map[interface{}]interface{}) (*LogEvent, error) {
