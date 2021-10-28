@@ -25,7 +25,7 @@ services:
       COLLECTOR_AUTH_USERNAME: collector
       OUTPUT_BATCH_EVENT_LIMIT: 5000
       OUTPUT_BATCH_TRIGGER_CONTENT_LIMIT_BYTES: 10485760
-      DOCKER_CONTAINER_ROOT_PATH: ${docker_data_root:/var/lib/docker}/containers
+      DOCKER_CONTAINER_ROOT_PATH: /var/lib/docker/containers
     resources:
       cpu: ${request_cpu:0.2}
       mem: ${request_mem:512}
@@ -34,7 +34,7 @@ services:
       network:
         mode: container
     binds:
-      - ${docker_data_root:/var/lib/docker}/containers:${docker_data_root:/var/lib/docker}/containers:ro
+      - ${docker_data_root:/var/lib/docker}/containers:/var/lib/docker/containers:ro
       - ${platform_data_root:/data}/spot-v2/fluent-bit:/data/spot/fluent-bit:rw
       - /var/log:/var/log:ro
     deployments:

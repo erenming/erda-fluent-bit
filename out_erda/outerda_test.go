@@ -135,8 +135,9 @@ func TestOutput_Process(t *testing.T) {
 			args: args{
 				timestamp: mockTimestamp,
 				record: map[interface{}]interface{}{
-					"log":    []byte("time=\"2021-10-12 16:00:14.130242184\" level=info msg=\"finish to run the task: executor K8S/MARATHONFORTERMINUSDEV (id: 1120384ca1, action: 5)\"\n"),
-					"stream": []byte("stderr"),
+					"log":      []byte("time=\"2021-10-12 16:00:14.130242184\" level=info msg=\"finish to run the task: executor K8S/MARATHONFORTERMINUSDEV (id: 1120384ca1, action: 5)\"\n"),
+					"stream":   []byte("stderr"),
+					"log_path": []byte("/testdata/containers/b2a9cb046a8275c57307cad907ef0a5553a78d6f4c1da7186566555d1a5383dd/b2a9cb046a8275c57307cad907ef0a5553a78d6f4c1da7186566555d1a5383dd-json.log"),
 					"attrs": map[interface{}]interface{}{
 						"TERMINUS_APP": []byte("scheduler"),
 						"TERMINUS_KEY": []byte("z179399ebf5ab436c937479640aec4dfa"),
@@ -203,7 +204,8 @@ func TestOutput_Process(t *testing.T) {
 var (
 	mockTimestamp = time.Date(2021, 10, 12, 8, 0, 15, 0, time.UTC)
 	mockCfg       = Config{
-		ContainerEnvInclude: strings.Split("TERMINUS_DEFINE_TAG,TERMINUS_KEY,MESOS_TASK_ID,DICE_ORG_ID,DICE_ORG_NAME,DICE_PROJECT_ID,DICE_PROJECT_NAME,DICE_APPLICATION_ID,DICE_APPLICATION_NAME,DICE_RUNTIME_ID,DICE_RUNTIME_NAME,DICE_SERVICE_NAME,DICE_WORKSPACE,DICE_COMPONENT,TERMINUS_LOG_KEY,MONITOR_LOG_KEY,DICE_CLUSTER_NAME,MSP_ENV_ID,MSP_LOG_ATTACH,POD_IP", ","),
+		ContainerEnvInclude:    strings.Split("TERMINUS_DEFINE_TAG,TERMINUS_KEY,MESOS_TASK_ID,DICE_ORG_ID,DICE_ORG_NAME,DICE_PROJECT_ID,DICE_PROJECT_NAME,DICE_APPLICATION_ID,DICE_APPLICATION_NAME,DICE_RUNTIME_ID,DICE_RUNTIME_NAME,DICE_SERVICE_NAME,DICE_WORKSPACE,DICE_COMPONENT,TERMINUS_LOG_KEY,MONITOR_LOG_KEY,DICE_CLUSTER_NAME,MSP_ENV_ID,MSP_LOG_ATTACH,POD_IP", ","),
+		DockerContainerIDIndex: -2,
 	}
 )
 
@@ -220,6 +222,13 @@ func mockCache(isJob bool) *metadataCache {
 						"MSP_ENV_ID":            "abc111",
 						"POD_IP":                "10.0.46.1",
 					},
+					Labels: map[string]string{
+						"io.kubernetes.container.name": "scheduler",
+						"io.kubernetes.docker.type":    "container",
+						"io.kubernetes.pod.name":       "scheduler-3feb156fc4-cf6b45b89-cwh5s",
+						"io.kubernetes.pod.namespace":  "project-387-dev",
+						"io.kubernetes.pod.uid":        "ad05d65a-b8b0-4b7c-84f3-88a2abc11bde",
+					},
 				},
 			},
 		},
@@ -232,8 +241,9 @@ func mockCache(isJob bool) *metadataCache {
 
 func mockRecord() map[interface{}]interface{} {
 	return map[interface{}]interface{}{
-		"log":    []byte("time=\"2021-10-12 16:00:14.130242184\" level=info msg=\"finish to run the task: executor K8S/MARATHONFORTERMINUSDEV (id: 1120384ca1, action: 5)\"\n"),
-		"stream": []byte("stderr"),
+		"log":      []byte("time=\"2021-10-12 16:00:14.130242184\" level=info msg=\"finish to run the task: executor K8S/MARATHONFORTERMINUSDEV (id: 1120384ca1, action: 5)\"\n"),
+		"stream":   []byte("stderr"),
+		"log_path": []byte("/testdata/containers/b2a9cb046a8275c57307cad907ef0a5553a78d6f4c1da7186566555d1a5383dd/b2a9cb046a8275c57307cad907ef0a5553a78d6f4c1da7186566555d1a5383dd-json.log"),
 		"attrs": map[interface{}]interface{}{
 			"TERMINUS_APP": []byte("scheduler"),
 			"TERMINUS_KEY": []byte("z179399ebf5ab436c937479640aec4dfa"),

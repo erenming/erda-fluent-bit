@@ -17,6 +17,7 @@ type Config struct {
 	// environment key list
 	ContainerEnvInclude      []string      `fluentbit:"container_env_include"`
 	DockerContainerRootPath  string        `fluentbit:"docker_container_root_path"`
+	DockerContainerIDIndex   int           `fluentbit:"docker_container_id_index"`
 	DockerConfigSyncInterval time.Duration `fluentbit:"docker_config_sync_interval"`
 
 	// 日志事件的最大个数限制

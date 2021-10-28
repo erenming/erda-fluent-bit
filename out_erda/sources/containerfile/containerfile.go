@@ -21,6 +21,7 @@ type DockerContainerInfo struct {
 	ID     DockerContainerID
 	Name   string
 	EnvMap map[string]string
+	Labels map[string]string
 
 	// for debug
 	configFilePath string
@@ -30,7 +31,8 @@ type dockerConfigV2 struct {
 	ID     DockerContainerID `json:"ID"`
 	Name   string            `json:"Name"`
 	Config struct {
-		Env []string `json:"Env"`
+		Env    []string          `json:"Env"`
+		Labels map[string]string `json:"Labels"`
 	} `json:"Config"`
 }
 
@@ -99,6 +101,18 @@ func (ci *ContainerInfoCenter) syncWithInterval() {
 			return
 		}
 	}
+}
+
+func eventString(op fsnotify.Op) string {
+	switch {
+	case op&fsnotify.Remove == fsnotify.Remove:
+		return "REMOVE"
+	case op&fsnotify.Rename == fsnotify.Rename:
+		return "RENAME"
+	case op&fsnotify.Create == fsnotify.Create:
+		return "CREATE"
+	}
+	return ""
 }
 
 func (ci *ContainerInfoCenter) watchFileChange() {
@@ -192,6 +206,7 @@ func (ci *ContainerInfoCenter) convert(src dockerConfigV2) DockerContainerInfo {
 		ID:     src.ID,
 		Name:   src.Name,
 		EnvMap: envmap,
+		Labels: src.Config.Labels,
 	}
 }
 

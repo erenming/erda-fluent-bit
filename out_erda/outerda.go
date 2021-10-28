@@ -138,15 +138,20 @@ func (o *Output) Process(timestamp time.Time, record map[interface{}]interface{}
 		t = val
 	}
 
+	logPath := getLogPath(record)
+
 	lg := &LogEvent{
+		ID:        o.getDockerContainerIDFromLogPath(logPath),
+		Source:    "container",
 		Stream:    bs2str(stream.([]byte)),
 		Content:   bs2str(stripNewLine(content.([]byte))),
 		Timestamp: t.UnixNano(),
+		Tags:      make(map[string]string),
 	}
 
 	err = o.enrichWithMetadata(lg, record)
 	if err != nil {
-		LogInfo("enrich metadata error. log_path: "+getLogPath(record), err)
+		LogInfo("enrich metadata error. log_path: "+logPath, err)
 	}
 
 	return lg, nil
@@ -169,10 +174,49 @@ type nestedKubernetes struct {
 	ContainerName  string
 }
 
-func unmarshalNestedKubernetes(data interface{}) (*nestedKubernetes, error) {
+func (o *Output) enrichWithMetadata(lg *LogEvent, record map[interface{}]interface{}) error {
+	// k8sInfo, ok := record["kubernetes"]
+	// if ok {
+	// 	o.enrichWithKubernetesMetadata(lg, k8sInfo)
+	// }
+
+	err := o.cache.EnrichMetadataWithContainerInfo(lg.ID, lg)
+	if err != nil {
+		return err
+	}
+
+	o.businessLogic(lg)
+	return nil
+}
+
+func (o *Output) getDockerContainerIDFromLogPath(logPath string) string {
+	items := strings.Split(logPath, "/")
+	if o.cfg.DockerContainerIDIndex < 0 {
+		return items[len(items)+o.cfg.DockerContainerIDIndex]
+	} else {
+		return items[o.cfg.DockerContainerIDIndex]
+	}
+}
+
+func (o *Output) enrichWithKubernetesMetadata(lg *LogEvent, k8sInfo interface{}) {
+	nk := unmarshalNestedKubernetes(k8sInfo)
+	if nk == nil {
+		return
+	}
+
+	lg.ID = nk.DockerID
+	lg.Tags["pod_ip"] = nk.PodID
+	lg.Tags["pod_name"] = nk.PodName
+	lg.Tags["pod_namespace"] = nk.NamespaceName
+	lg.Tags["pod_id"] = nk.PodID
+	lg.Tags["container_id"] = nk.DockerID
+	lg.Tags["container_name"] = nk.ContainerName
+}
+
+func unmarshalNestedKubernetes(data interface{}) *nestedKubernetes {
 	mm, ok := data.(map[interface{}]interface{})
 	if !ok {
-		return nil, fmt.Errorf("must be map[string]string")
+		return nil
 	}
 	nk := &nestedKubernetes{}
 	if v, ok := mm["pod_name"]; ok {
@@ -193,35 +237,7 @@ func unmarshalNestedKubernetes(data interface{}) (*nestedKubernetes, error) {
 	if v, ok := mm["container_name"]; ok {
 		nk.ContainerName = bs2str(v.([]byte))
 	}
-	return nk, nil
-}
-
-func (o *Output) enrichWithMetadata(lg *LogEvent, record map[interface{}]interface{}) error {
-	k8sInfo, ok := record["kubernetes"]
-	if !ok {
-		return fmt.Errorf("key kubernetes: %w", ErrKeyMustExist)
-	}
-
-	nk, err := unmarshalNestedKubernetes(k8sInfo)
-	if err != nil {
-		return fmt.Errorf("decode nested kubernetes: %w", err)
-	}
-
-	lg.ID = nk.DockerID
-	lg.Source = "container"
-	lg.Tags = make(map[string]string)
-	lg.Tags["pod_ip"] = nk.PodID
-	lg.Tags["pod_name"] = nk.PodName
-	lg.Tags["pod_namespace"] = nk.NamespaceName
-	lg.Tags["pod_id"] = nk.PodID
-	lg.Tags["container_id"] = nk.DockerID
-	// lg.Tags["container_image"] = nk.ContainerImage
-	lg.Tags["container_name"] = nk.ContainerName
-
-	o.cache.EnrichMetadataWithContainerEnv(nk.DockerID, lg)
-
-	o.businessLogic(lg)
-	return nil
+	return nk
 }
 
 func (o *Output) businessLogic(lg *LogEvent) {

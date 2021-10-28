@@ -84,7 +84,7 @@ LABEL Description="Fluent Bit docker image for testing branch master" Vendor="Fl
 RUN true
 RUN apt-get update && \
     apt-get install -y --no-install-recommends \
-    bash gdb valgrind build-essential vim curl
+    bash gdb valgrind build-essential vim curl sqlite3
 
 # Copy certificates
 COPY --from=builder /usr/share/ca-certificates/  /usr/share/ca-certificates/
