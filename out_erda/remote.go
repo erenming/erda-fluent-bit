@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"github.com/sirupsen/logrus"
+	"golang.org/x/time/rate"
 )
 
 type remoteServiceInf interface {
@@ -26,11 +27,15 @@ type RemoteConfig struct {
 	KeepAliveIdleTimeout time.Duration     `fluentbit:"keep_alive_idle_timeout"`
 	BasicAuthUsername    string            `fluentbit:"basic_auth_username"`
 	BasicAuthPassword    string            `fluentbit:"basic_auth_password"`
+
+	// 流量限制
+	NetLimitBytesPerSecond int `fluentbit:"net_limit_bytes_per_second"`
 }
 
 type collectorService struct {
-	cfg    RemoteConfig
-	client *http.Client
+	cfg     RemoteConfig
+	client  *http.Client
+	limiter *rate.Limiter
 }
 
 func newCollectorService(cfg RemoteConfig) *collectorService {
@@ -50,9 +55,11 @@ func newCollectorService(cfg RemoteConfig) *collectorService {
 		Timeout: cfg.RequestTimeout,
 	}
 	cs := &collectorService{
-		cfg:    cfg,
-		client: client,
+		cfg:     cfg,
+		client:  client,
+		limiter: rate.NewLimiter(rate.Limit(cfg.NetLimitBytesPerSecond), cfg.NetLimitBytesPerSecond),
 	}
+
 	cs.BasicAuth()
 	return cs
 }
@@ -73,6 +80,15 @@ func (c *collectorService) BasicAuth() {
 }
 
 func (c *collectorService) sendWithPath(data []byte, path string) error {
+	// block until ok
+	r := c.limiter.ReserveN(time.Now(), len(data))
+	if !r.OK() {
+		newBurst := c.limiter.Burst() << 1
+		c.limiter.SetBurst(newBurst)
+		return fmt.Errorf("double of burst to %d", newBurst)
+	}
+	time.Sleep(r.Delay())
+
 	req, err := http.NewRequest(http.MethodPost, hostJoinPath(c.cfg.URL, path), bytes.NewReader(data))
 	if err != nil {
 		return fmt.Errorf("new request failed: %w", err)

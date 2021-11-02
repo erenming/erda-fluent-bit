@@ -2,6 +2,7 @@ package outerda
 
 import (
 	"io"
+	"math"
 	"net/http"
 	"net/http/httptest"
 	"testing"
@@ -41,11 +42,12 @@ func Test_collectorService_sendWithPath(t *testing.T) {
 					"Content-Type":     "application/json; charset=UTF-8",
 					"Content-Encoding": "gzip",
 				},
-				URL:                  ts.URL,
-				JobPath:              "/job",
-				ContainerPath:        "/container",
-				RequestTimeout:       10 * time.Second,
-				KeepAliveIdleTimeout: 3 * time.Minute,
+				URL:                    ts.URL,
+				JobPath:                "/job",
+				ContainerPath:          "/container",
+				RequestTimeout:         10 * time.Second,
+				KeepAliveIdleTimeout:   3 * time.Minute,
+				NetLimitBytesPerSecond: math.MaxInt64,
 			}},
 			args: args{
 				data: []byte("hello world"),

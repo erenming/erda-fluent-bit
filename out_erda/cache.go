@@ -3,7 +3,6 @@ package outerda
 import (
 	"fmt"
 	"strings"
-	"time"
 
 	"github.com/erda-project/erda-for-fluent-bit/out_erda/sources/containerfile"
 )
@@ -12,12 +11,8 @@ type metadataCache struct {
 	dockerConfig *containerfile.ContainerInfoCenter
 }
 
-func newMetadataCache(globPattern string, envIncludeList []string, syncInterval time.Duration) *metadataCache {
-	dc := containerfile.NewContainerInfoCenter(containerfile.Config{
-		RootPath:       globPattern,
-		EnvIncludeList: envIncludeList,
-		SyncInterval:   syncInterval,
-	})
+func newMetadataCache(cfg containerfile.Config) *metadataCache {
+	dc := containerfile.NewContainerInfoCenter(cfg)
 
 	return &metadataCache{
 		dockerConfig: dc,

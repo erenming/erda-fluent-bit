@@ -7,6 +7,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/erda-project/erda-for-fluent-bit/out_erda/sources/containerfile"
 	"github.com/fluent/fluent-bit-go/output"
 )
 
@@ -31,27 +32,27 @@ type Output struct {
 }
 
 func NewOutput(cfg Config) *Output {
-	cfg.RemoteConfig.Headers["Content-Type"] = "application/json; charset=UTF-8"
-	if cfg.CompressLevel > 0 {
-		cfg.RemoteConfig.Headers["Content-Encoding"] = "gzip"
-	}
+	cfg.Init()
 	svc := newCollectorService(cfg.RemoteConfig)
 
 	return &Output{
 		remoteService: svc,
 		cfg:           cfg,
-		cache:         newMetadataCache(cfg.DockerContainerRootPath, cfg.ContainerEnvInclude, cfg.DockerConfigSyncInterval),
+		cache: newMetadataCache(containerfile.Config{
+			RootPath:           cfg.DockerContainerRootPath,
+			EnvIncludeList:     cfg.ContainerEnvInclude,
+			SyncInterval:       cfg.DockerConfigSyncInterval,
+			MaxExpiredDuration: cfg.DockerConfigMaxExpiredDuration,
+		}),
 		batchContainer: NewBatchSender(batchConfig{
 			BatchEventLimit:             cfg.BatchEventLimit,
-			BatchNetWriteBytesPerSecond: cfg.BatchNetWriteBytesPerSecond,
 			BatchEventContentLimitBytes: cfg.BatchEventContentLimitBytes,
 			send2remoteServer:           svc.SendContainerLog,
 			GzipLevel:                   cfg.CompressLevel,
 		}),
 		batchJob: NewBatchSender(batchConfig{
-			BatchEventLimit:             cfg.BatchEventLimit / 4,
-			BatchNetWriteBytesPerSecond: cfg.BatchNetWriteBytesPerSecond,
-			BatchEventContentLimitBytes: cfg.BatchEventContentLimitBytes / 4,
+			BatchEventLimit:             cfg.BatchEventLimit,
+			BatchEventContentLimitBytes: cfg.BatchEventContentLimitBytes,
 			send2remoteServer:           svc.SendJobLog,
 			GzipLevel:                   cfg.CompressLevel,
 		}),

@@ -26,7 +26,6 @@ type LogEvent struct {
 type batchConfig struct {
 	send2remoteServer           func(data []byte) error
 	BatchEventLimit             int
-	BatchNetWriteBytesPerSecond int
 	BatchEventContentLimitBytes int
 	GzipLevel                   int
 }
