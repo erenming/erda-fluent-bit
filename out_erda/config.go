@@ -14,7 +14,8 @@ import (
 const compressRatio = 0.25
 
 type Config struct {
-	RemoteConfig  RemoteConfig
+	RemoteConfig RemoteConfig
+
 	CompressLevel int `fluentbit:"compress_level"`
 	// environment key list
 	ContainerEnvInclude            []string      `fluentbit:"container_env_include"`
@@ -27,6 +28,21 @@ type Config struct {
 	BatchEventLimit int `fluentbit:"batch_event_limit"`
 	// 日志内容大小总和阈值
 	BatchEventContentLimitBytes int `fluentbit:"batch_event_content_limit_bytes"`
+}
+
+type RemoteConfig struct {
+	RemoteType           string            `fluentbit:"remote_type"`
+	Headers              map[string]string `fluentbit:"headers"`
+	URL                  string            `fluentbit:"erda_ingest_url"`
+	JobPath              string            `fluentbit:"job_path"`
+	ContainerPath        string            `fluentbit:"container_path"`
+	RequestTimeout       time.Duration     `fluentbit:"request_timeout"`
+	KeepAliveIdleTimeout time.Duration     `fluentbit:"keep_alive_idle_timeout"`
+	BasicAuthUsername    string            `fluentbit:"basic_auth_username"`
+	BasicAuthPassword    string            `fluentbit:"basic_auth_password"`
+
+	// 流量限制
+	NetLimitBytesPerSecond int `fluentbit:"net_limit_bytes_per_second"`
 }
 
 func (cfg *Config) Init() {

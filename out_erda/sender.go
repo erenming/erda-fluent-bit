@@ -21,10 +21,13 @@ type LogEvent struct {
 	// Offset    uint64            `json:"offset"`
 	Timestamp int64             `json:"timestamp"`
 	Tags      map[string]string `json:"tags"`
+	// deprecated
+	Labels         map[string]string `json:"labels"`
+	logAnalysisURL string
 }
 
 type batchConfig struct {
-	send2remoteServer           func(data []byte) error
+	remoteServer                *collectorService
 	BatchEventLimit             int
 	BatchEventContentLimitBytes int
 	GzipLevel                   int
@@ -98,6 +101,11 @@ func (bs *BatchSender) flush(data []*LogEvent) error {
 		return nil
 	}
 
+
+	if rs :=  bs.cfg.remoteServer; rs.Type() == logAnalysis && rs.GetURL() == "" {
+		rs.SetURL(data[0].logAnalysisURL)
+	}
+
 	buf, err := json.Marshal(data)
 	if err != nil {
 		return fmt.Errorf("json marshal: %w", err)
@@ -111,7 +119,7 @@ func (bs *BatchSender) flush(data []*LogEvent) error {
 		buf = cbuf
 	}
 
-	err = bs.cfg.send2remoteServer(buf)
+	err = bs.cfg.remoteServer.SendLog(buf)
 	if err != nil {
 		return fmt.Errorf("send remote: %w", err)
 	}
