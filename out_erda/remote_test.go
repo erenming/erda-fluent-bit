@@ -26,7 +26,7 @@ func Test_collectorService_sendWithPath(t *testing.T) {
 	}
 	type args struct {
 		data []byte
-		url string
+		url  string
 	}
 	tests := []struct {
 		name    string
@@ -49,7 +49,7 @@ func Test_collectorService_sendWithPath(t *testing.T) {
 			}},
 			args: args{
 				data: []byte("hello world"),
-				url: hostJoinPath(ts.URL, "/collector"),
+				url:  hostJoinPath(ts.URL, "/collector"),
 			},
 			wantErr: false,
 		},

@@ -101,8 +101,7 @@ func (bs *BatchSender) flush(data []*LogEvent) error {
 		return nil
 	}
 
-
-	if rs :=  bs.cfg.remoteServer; rs.Type() == logAnalysis && rs.GetURL() == "" {
+	if rs := bs.cfg.remoteServer; rs.Type() == logAnalysis && rs.GetURL() == "" {
 		rs.SetURL(data[0].logAnalysisURL)
 	}
 

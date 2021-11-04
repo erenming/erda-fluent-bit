@@ -1,7 +1,6 @@
 package main
 
 import (
-	"os"
 	"time"
 	"unsafe"
 
@@ -30,7 +29,6 @@ func defaultConfig() outerda.Config {
 	return outerda.Config{
 		RemoteConfig: outerda.RemoteConfig{
 			Headers:                map[string]string{},
-			URL:                    erdaURL,
 			JobPath:                "/collect/logs/job",
 			ContainerPath:          "/collect/logs/container",
 			RequestTimeout:         time.Second * 10,

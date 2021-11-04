@@ -67,7 +67,7 @@ func TestBatchSender_SendLogEvent(t *testing.T) {
 				remoteServer:                mm,
 				BatchEventLimit:             tt.fields.BatchEventLimit,
 				BatchEventContentLimitBytes: tt.fields.BatchEventContentLimitBytes,
-				GzipLevel: 3,
+				GzipLevel:                   3,
 			})
 			for i := 0; i < tt.fields.dataNum; i++ {
 				err := bs.SendLogEvent(tt.args.lg)
@@ -104,7 +104,7 @@ var mockLogEvent = &LogEvent{
 }
 
 type mockRemote struct {
-	expected []*LogEvent
+	expected  []*LogEvent
 	sendCount int
 	url       string
 }
@@ -128,10 +128,9 @@ func (m *mockRemote) Type() collectorType {
 }
 
 func TestBatchSender_flush(t *testing.T) {
-	mr := &mockRemote{
-	}
+	mr := &mockRemote{}
 	cfg := batchConfig{
-		GzipLevel: 3,
+		GzipLevel:    3,
 		remoteServer: mr,
 	}
 	bs := &BatchSender{
