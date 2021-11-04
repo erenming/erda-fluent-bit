@@ -131,7 +131,6 @@ func (o *Output) AddEvent(event *Event) int {
 				return output.FLB_RETRY
 			}
 		}
-
 	} else {
 		switch lg.Source {
 		case "job":
