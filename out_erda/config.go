@@ -2,6 +2,7 @@ package outerda
 
 import (
 	"fmt"
+	"os"
 	"reflect"
 	"strconv"
 	"strings"
@@ -46,6 +47,14 @@ type RemoteConfig struct {
 }
 
 func (cfg *Config) Init() {
+	if collectorType(cfg.RemoteConfig.RemoteType) != logAnalysis && cfg.RemoteConfig.URL == "" {
+		erdaURL := "http://" + os.Getenv("COLLECTOR_ADDR")
+		if os.Getenv("DICE_IS_EDGE") == "true" {
+			erdaURL = os.Getenv("COLLECTOR_PUBLIC_URL")
+		}
+		cfg.RemoteConfig.URL = erdaURL
+	}
+
 	cfg.RemoteConfig.Headers["Content-Type"] = "application/json; charset=UTF-8"
 	if cfg.CompressLevel > 0 {
 		cfg.RemoteConfig.Headers["Content-Encoding"] = "gzip"

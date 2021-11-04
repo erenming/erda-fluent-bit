@@ -27,7 +27,7 @@ type LogEvent struct {
 }
 
 type batchConfig struct {
-	remoteServer                *collectorService
+	remoteServer                remoteServiceInf
 	BatchEventLimit             int
 	BatchEventContentLimitBytes int
 	GzipLevel                   int

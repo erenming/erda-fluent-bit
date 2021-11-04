@@ -62,11 +62,12 @@ func TestBatchSender_SendLogEvent(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			mm := mockRemote{}
+			mm := &mockRemote{}
 			bs := NewBatchSender(batchConfig{
-				send2remoteServer:           mm.SendContainerLog,
+				remoteServer:                mm,
 				BatchEventLimit:             tt.fields.BatchEventLimit,
 				BatchEventContentLimitBytes: tt.fields.BatchEventContentLimitBytes,
+				GzipLevel: 3,
 			})
 			for i := 0; i < tt.fields.dataNum; i++ {
 				err := bs.SendLogEvent(tt.args.lg)
@@ -103,26 +104,35 @@ var mockLogEvent = &LogEvent{
 }
 
 type mockRemote struct {
+	expected []*LogEvent
 	sendCount int
+	url       string
 }
 
-func (m *mockRemote) SendContainerLog(data []byte) error {
+func (m *mockRemote) SendLog(data []byte) error {
+	m.expected = unmarshal(data)
 	m.sendCount++
 	return nil
 }
 
-func (m *mockRemote) SendJobLog(data []byte) error {
-	return nil
+func (m *mockRemote) GetURL() string {
+	return "http://localhost/collector"
+}
+
+func (m *mockRemote) SetURL(u string) {
+	m.url = u
+}
+
+func (m *mockRemote) Type() collectorType {
+	return centralCollector
 }
 
 func TestBatchSender_flush(t *testing.T) {
-	expected := make([]*LogEvent, 0)
+	mr := &mockRemote{
+	}
 	cfg := batchConfig{
 		GzipLevel: 3,
-		send2remoteServer: func(data []byte) error {
-			expected = unmarshal(data)
-			return nil
-		},
+		remoteServer: mr,
 	}
 	bs := &BatchSender{
 		batchLogEvent: make([]*LogEvent, cfg.BatchEventLimit),
@@ -143,7 +153,7 @@ func TestBatchSender_flush(t *testing.T) {
 	}
 	err := bs.flush(source)
 	ass.Nil(err)
-	ass.Equal(expected, source)
+	ass.Equal(mr.expected, source)
 }
 
 func unmarshal(data []byte) []*LogEvent {

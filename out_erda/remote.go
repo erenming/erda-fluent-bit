@@ -6,7 +6,6 @@ import (
 	"io"
 	"net"
 	"net/http"
-	"net/url"
 	"strings"
 	"time"
 
@@ -22,8 +21,11 @@ const (
 )
 
 type remoteServiceInf interface {
-	SendLogWithURLString(data []byte, urlStr string) error
+	// SendLogWithURLString(data []byte, urlStr string) error
 	SendLog(data []byte) error
+	GetURL() string
+	SetURL(u string)
+	Type() collectorType
 }
 
 type collectorConfig struct {
@@ -91,13 +93,13 @@ func (c *collectorService) BasicAuth() {
 	}
 }
 
-func (c *collectorService) SendLogWithURLString(data []byte, urlStr string) error {
-	u, err := url.Parse(urlStr)
-	if err != nil {
-		return fmt.Errorf("invalide url: %s, err: %w", urlStr, err)
-	}
-	return c.sendLogWithURL(data, u.String())
-}
+// func (c *collectorService) SendLogWithURLString(data []byte, urlStr string) error {
+// 	u, err := url.Parse(urlStr)
+// 	if err != nil {
+// 		return fmt.Errorf("invalide url: %s, err: %w", urlStr, err)
+// 	}
+// 	return c.sendLogWithURL(data, u.String())
+// }
 
 func (c *collectorService) SendLog(data []byte) error {
 	return c.sendLogWithURL(data, c.cfg.URL)

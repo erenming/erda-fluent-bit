@@ -21,12 +21,6 @@ func BenchmarkOutput_Process(b *testing.B) {
 	}
 }
 
-// func BenchmarkOutput_Send(b *testing.B) {
-// 	for i := 0; i < b.N; i++ {
-// 		// TODO
-// 	}
-// }
-
 func TestOutput_Process(t *testing.T) {
 	type fields struct {
 		output *Output
@@ -72,6 +66,7 @@ func TestOutput_Process(t *testing.T) {
 					"application_name":      "scheduler",
 					"container_name":        "scheduler",
 				},
+				Labels: map[string]string{},
 			},
 			wantErr: false,
 		},
@@ -106,6 +101,7 @@ func TestOutput_Process(t *testing.T) {
 					"terminus_define_tag":   "pipeline-task-1024",
 					"container_name":        "scheduler",
 				},
+				Labels: map[string]string{},
 			},
 			wantErr: false,
 		},
@@ -184,6 +180,7 @@ func TestOutput_Process(t *testing.T) {
 					"application_name":      "scheduler",
 					"container_name":        "scheduler",
 				},
+				Labels: map[string]string{},
 			},
 			wantErr: false,
 		},

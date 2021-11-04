@@ -9,6 +9,7 @@ import (
 
 	"github.com/erda-project/erda-for-fluent-bit/out_erda/sources/containerfile"
 	"github.com/fluent/fluent-bit-go/output"
+	"github.com/sirupsen/logrus"
 )
 
 var (
@@ -38,6 +39,8 @@ type Output struct {
 
 func NewOutput(cfg Config) *Output {
 	cfg.Init()
+	logrus.Infof("cfg: %+v", cfg)
+
 	containerCollector := newCollectorService(collectorConfig{
 		Headers:                cfg.RemoteConfig.Headers,
 		URL:                    hostJoinPath(cfg.RemoteConfig.URL, cfg.RemoteConfig.ContainerPath),

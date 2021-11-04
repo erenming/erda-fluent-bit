@@ -27,11 +27,6 @@ const (
 )
 
 func defaultConfig() outerda.Config {
-	erdaURL := "http://" + os.Getenv("COLLECTOR_ADDR")
-	if os.Getenv("DICE_IS_EDGE") == "true" {
-		erdaURL = os.Getenv("COLLECTOR_PUBLIC_URL")
-	}
-
 	return outerda.Config{
 		RemoteConfig: outerda.RemoteConfig{
 			Headers:                map[string]string{},
@@ -70,8 +65,6 @@ func FLBPluginInit(plugin unsafe.Pointer) int {
 		outerda.LogError("load error: %s", err)
 		return output.FLB_ERROR
 	}
-
-	logrus.Infof("cfg: %+v", cfg)
 
 	outErdaInstance = outerda.NewOutput(cfg)
 	if err := outErdaInstance.Start(); err != nil {
