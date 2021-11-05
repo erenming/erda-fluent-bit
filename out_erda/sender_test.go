@@ -52,7 +52,7 @@ func TestBatchSender_SendLogEvent(t *testing.T) {
 				batchEventSize:              10,
 				waitDuration:                time.Second * 2,
 				BatchEventLimit:             1001,
-				BatchEventContentLimitBytes: len(mockLogEvent.Content) * 10,
+				BatchEventContentLimitBytes: mockLogEvent.Size() * 10,
 			},
 			args: args{
 				lg: mockLogEvent,

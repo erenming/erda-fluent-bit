@@ -27,6 +27,14 @@ type LogEvent struct {
 	logAnalysisURL string
 }
 
+func (l *LogEvent) Size() int {
+	size := len(l.Content) + len(l.ID) + len(l.Source) + len(l.Stream)
+	for k, v := range l.Tags {
+		size += len(k) + len(v)
+	}
+	return size
+}
+
 type batchConfig struct {
 	remoteServer                remoteServiceInf
 	BatchEventLimit             int
@@ -78,7 +86,7 @@ func (bs *BatchSender) SendLogEvent(lg *LogEvent) error {
 	}
 
 	bs.batchLogEvent[bs.currentIndex] = lg
-	bs.currentContentSizeBytes += len(lg.Content)
+	bs.currentContentSizeBytes += lg.Size()
 	bs.currentIndex++
 	return nil
 }
