@@ -25,6 +25,7 @@ type DockerContainerInfo struct {
 
 	// for debug
 	configFilePath string
+	lastUsed       time.Time
 }
 
 type dockerConfigV2 struct {
@@ -37,31 +38,36 @@ type dockerConfigV2 struct {
 }
 
 type Config struct {
-	RootPath       string
-	EnvIncludeList []string
-	SyncInterval   time.Duration
+	RootPath           string
+	EnvIncludeList     []string
+	SyncInterval       time.Duration
+	MaxExpiredDuration time.Duration
 }
 
 type ContainerInfoCenter struct {
-	rootPath      string
-	globPattern   string
-	syncInterval  time.Duration
-	envKeyInclude map[string]struct{}
-	mu            sync.RWMutex
-	done          chan struct{}
-	watcher       *fsnotify.Watcher
+	rootPath           string
+	globPattern        string
+	syncInterval       time.Duration
+	envKeyInclude      map[string]struct{}
+	maxExpiredDuration time.Duration
+
+	mu      sync.RWMutex
+	done    chan struct{}
+	watcher *fsnotify.Watcher
 	// todo should not exported
+	// TODO DockerContainerID超过一段时间内未被访问过，才会删除
 	Data map[DockerContainerID]DockerContainerInfo
 }
 
 func NewContainerInfoCenter(cfg Config) *ContainerInfoCenter {
 	return &ContainerInfoCenter{
-		syncInterval:  cfg.SyncInterval,
-		rootPath:      cfg.RootPath,
-		globPattern:   filepath.Join(cfg.RootPath, "*", configJson),
-		envKeyInclude: listToMap(cfg.EnvIncludeList),
-		Data:          make(map[DockerContainerID]DockerContainerInfo),
-		done:          make(chan struct{}),
+		syncInterval:       cfg.SyncInterval,
+		rootPath:           cfg.RootPath,
+		globPattern:        filepath.Join(cfg.RootPath, "*", configJson),
+		envKeyInclude:      listToMap(cfg.EnvIncludeList),
+		maxExpiredDuration: cfg.MaxExpiredDuration,
+		Data:               make(map[DockerContainerID]DockerContainerInfo),
+		done:               make(chan struct{}),
 	}
 }
 
@@ -172,6 +178,16 @@ func (ci *ContainerInfoCenter) scan() error {
 		}
 		data[dinfo.ID] = dinfo
 	}
+
+	now := time.Now()
+	ci.mu.RLock()
+	for k, v := range ci.Data {
+		if _, ok := data[k]; !ok && now.Sub(v.lastUsed) <= ci.maxExpiredDuration {
+			data[k] = v
+		}
+	}
+	ci.mu.RUnlock()
+
 	ci.mu.Lock()
 	ci.Data = data
 	ci.mu.Unlock()
@@ -203,10 +219,11 @@ func (ci *ContainerInfoCenter) convert(src dockerConfigV2) DockerContainerInfo {
 		}
 	}
 	return DockerContainerInfo{
-		ID:     src.ID,
-		Name:   src.Name,
-		EnvMap: envmap,
-		Labels: src.Config.Labels,
+		ID:       src.ID,
+		Name:     src.Name,
+		EnvMap:   envmap,
+		Labels:   src.Config.Labels,
+		lastUsed: time.Now(),
 	}
 }
 
@@ -214,6 +231,9 @@ func (ci *ContainerInfoCenter) GetInfoByContainerID(cid string) (DockerContainer
 	ci.mu.RLock()
 	defer ci.mu.RUnlock()
 	res, ok := ci.Data[DockerContainerID(cid)]
+	if ok {
+		res.lastUsed = time.Now()
+	}
 	return res, ok
 }
 

@@ -46,31 +46,55 @@ func TestNewContainerInfoCenter(t *testing.T) {
 }
 
 func TestContainerInfoCenter_scan(t *testing.T) {
+	ass := assert.New(t)
 	type fields struct {
 		cfg Config
 	}
 	tests := []struct {
-		name    string
-		fields  fields
-		wantErr bool
+		name     string
+		fields   fields
+		wantSize int
 	}{
 		{
-			name: "",
+			name: "normal",
 			fields: fields{
 				cfg: Config{
-					RootPath:       "testdata/containers",
-					EnvIncludeList: []string{"KUBE_DNS_SERVICE_HOST"},
+					RootPath:           "testdata/containers",
+					EnvIncludeList:     []string{"KUBE_DNS_SERVICE_HOST"},
+					MaxExpiredDuration: time.Hour,
 				},
 			},
-			wantErr: false,
+			wantSize: 2,
+		},
+		{
+			name: "expired entry",
+			fields: fields{
+				cfg: Config{
+					RootPath:           "testdata/containers",
+					EnvIncludeList:     []string{"KUBE_DNS_SERVICE_HOST"},
+					MaxExpiredDuration: time.Second,
+					SyncInterval: 2*time.Second,
+				},
+			},
+			wantSize: 1,
 		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			ci := NewContainerInfoCenter(tt.fields.cfg)
-			if err := ci.scan(); (err != nil) != tt.wantErr {
-				t.Errorf("scan() error = %v, wantErr %v", err, tt.wantErr)
-			}
+			src, dst := filepath.Join("testdata", "container-b"), filepath.Join("testdata/containers", "container-b")
+			err := copy2.Copy(src, dst, copy2.Options{
+				Sync: true,
+			})
+			ass.Nil(err)
+			ass.Nil(ci.scan())
+			ass.Equal(2, len(ci.Data))
+
+			ass.Nil(os.RemoveAll(dst))
+			time.Sleep(ci.syncInterval)
+			ass.Nil(ci.scan())
+			// old data kept
+			ass.Equal(tt.wantSize, len(ci.Data))
 		})
 	}
 }
@@ -83,17 +107,17 @@ func TestContainerInfoCenter_watchFileChange(t *testing.T) {
 	ass := assert.New(t)
 	ass.Nil(ci.initWatcher())
 	ass.Nil(ci.scan())
-	ass.Equal(filepath.Join(ci.rootPath, "123", configJson), ci.Data["1c3d08e59bb39ee1ab2fca95c6b6ed72d7662eac58074af1962bf3b3a113040b"].configFilePath)
+	ass.Equal(1, len(ci.Data))
 
 	go ci.watchFileChange()
 
-	err := copy2.Copy(filepath.Join(ci.rootPath, "123"), filepath.Join(ci.rootPath, "456"), copy2.Options{
+	src, dst := filepath.Join("testdata", "container-b"), filepath.Join("testdata/containers", "container-b")
+	err := copy2.Copy(src, dst, copy2.Options{
 		Sync: true,
 	})
 	ass.Nil(err)
-	defer os.RemoveAll(filepath.Join(ci.rootPath, "456"))
+	defer os.RemoveAll(dst)
 
 	time.Sleep(2 * time.Second)
-	ass.Equal(1, len(ci.Data))
-	ass.Equal(filepath.Join(ci.rootPath, "456", configJson), ci.Data["1c3d08e59bb39ee1ab2fca95c6b6ed72d7662eac58074af1962bf3b3a113040b"].configFilePath)
+	ass.Equal(2, len(ci.Data))
 }

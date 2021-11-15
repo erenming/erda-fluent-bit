@@ -18,15 +18,26 @@ type LogEvent struct {
 	ID      string `json:"id"`
 	Stream  string `json:"stream"`
 	Content string `json:"content"`
-	// Offset    uint64            `json:"offset"`
+	// deprecated
+	Offset    uint64            `json:"offset"`
 	Timestamp int64             `json:"timestamp"`
 	Tags      map[string]string `json:"tags"`
+	// deprecated
+	Labels         map[string]string `json:"labels"`
+	logAnalysisURL string
+}
+
+func (l *LogEvent) Size() int {
+	size := len(l.Content) + len(l.ID) + len(l.Source) + len(l.Stream)
+	for k, v := range l.Tags {
+		size += len(k) + len(v)
+	}
+	return size
 }
 
 type batchConfig struct {
-	send2remoteServer           func(data []byte) error
+	remoteServer                remoteServiceInf
 	BatchEventLimit             int
-	BatchNetWriteBytesPerSecond int
 	BatchEventContentLimitBytes int
 	GzipLevel                   int
 }
@@ -75,7 +86,7 @@ func (bs *BatchSender) SendLogEvent(lg *LogEvent) error {
 	}
 
 	bs.batchLogEvent[bs.currentIndex] = lg
-	bs.currentContentSizeBytes += len(lg.Content)
+	bs.currentContentSizeBytes += lg.Size()
 	bs.currentIndex++
 	return nil
 }
@@ -99,6 +110,10 @@ func (bs *BatchSender) flush(data []*LogEvent) error {
 		return nil
 	}
 
+	if rs := bs.cfg.remoteServer; rs.Type() == logAnalysis && rs.GetURL() == "" {
+		rs.SetURL(data[0].logAnalysisURL)
+	}
+
 	buf, err := json.Marshal(data)
 	if err != nil {
 		return fmt.Errorf("json marshal: %w", err)
@@ -112,7 +127,7 @@ func (bs *BatchSender) flush(data []*LogEvent) error {
 		buf = cbuf
 	}
 
-	err = bs.cfg.send2remoteServer(buf)
+	err = bs.cfg.remoteServer.SendLog(buf)
 	if err != nil {
 		return fmt.Errorf("send remote: %w", err)
 	}

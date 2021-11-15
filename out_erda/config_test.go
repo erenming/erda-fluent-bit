@@ -36,3 +36,46 @@ func Test_LoadFromFLBPlugin(t *testing.T) {
 	}, cfg.RemoteConfig.Headers)
 	ass.Equal([]string{"abc", "edf", "ghi"}, cfg.ContainerEnvInclude)
 }
+
+func TestConfig_Init(t *testing.T) {
+	type fields struct {
+		cfg Config
+	}
+	tests := []struct {
+		name   string
+		fields fields
+		want   Config
+	}{
+		{
+			name: "normal",
+			fields: fields{
+				cfg: Config{
+					RemoteConfig: RemoteConfig{
+						NetLimitBytesPerSecond: 100,
+						Headers:                map[string]string{},
+					},
+					CompressLevel:               3,
+					BatchEventContentLimitBytes: 800,
+				},
+			},
+			want: Config{
+				RemoteConfig: RemoteConfig{
+					URL: "http://",
+					Headers: map[string]string{
+						"Content-Type":     "application/json; charset=UTF-8",
+						"Content-Encoding": "gzip",
+					},
+					NetLimitBytesPerSecond: 100,
+				},
+				CompressLevel:               3,
+				BatchEventContentLimitBytes: 200,
+			},
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			tt.fields.cfg.Init()
+			assert.Equal(t, tt.want, tt.fields.cfg)
+		})
+	}
+}

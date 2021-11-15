@@ -10,30 +10,45 @@ import (
 	"time"
 
 	"github.com/sirupsen/logrus"
+	"golang.org/x/time/rate"
+)
+
+type collectorType string
+
+const (
+	centralCollector collectorType = "central_collector"
+	logAnalysis      collectorType = "log_analysis"
 )
 
 type remoteServiceInf interface {
-	SendContainerLog(data []byte) error
-	SendJobLog(data []byte) error // todo should be removed
+	// SendLogWithURLString(data []byte, urlStr string) error
+	SendLog(data []byte) error
+	GetURL() string
+	SetURL(u string)
+	Type() collectorType
 }
 
-type RemoteConfig struct {
-	Headers              map[string]string `fluentbit:"headers"`
-	URL                  string            `fluentbit:"erda_ingest_url"`
-	JobPath              string            `fluentbit:"job_path"`
-	ContainerPath        string            `fluentbit:"container_path"`
-	RequestTimeout       time.Duration     `fluentbit:"request_timeout"`
-	KeepAliveIdleTimeout time.Duration     `fluentbit:"keep_alive_idle_timeout"`
-	BasicAuthUsername    string            `fluentbit:"basic_auth_username"`
-	BasicAuthPassword    string            `fluentbit:"basic_auth_password"`
+type collectorConfig struct {
+	Headers              map[string]string
+	URL                  string
+	RequestTimeout       time.Duration
+	KeepAliveIdleTimeout time.Duration
+	BasicAuthUsername    string
+	BasicAuthPassword    string
+
+	// 流量限制
+	NetLimitBytesPerSecond int
+
+	collectorType collectorType
 }
 
 type collectorService struct {
-	cfg    RemoteConfig
-	client *http.Client
+	cfg     collectorConfig
+	client  *http.Client
+	limiter *rate.Limiter
 }
 
-func newCollectorService(cfg RemoteConfig) *collectorService {
+func newCollectorService(cfg collectorConfig) *collectorService {
 	client := &http.Client{
 		Transport: &http.Transport{
 			DialContext: (&net.Dialer{
@@ -50,19 +65,25 @@ func newCollectorService(cfg RemoteConfig) *collectorService {
 		Timeout: cfg.RequestTimeout,
 	}
 	cs := &collectorService{
-		cfg:    cfg,
-		client: client,
+		cfg:     cfg,
+		client:  client,
+		limiter: rate.NewLimiter(rate.Limit(cfg.NetLimitBytesPerSecond), cfg.NetLimitBytesPerSecond),
 	}
+
 	cs.BasicAuth()
 	return cs
 }
 
-func (c *collectorService) SendContainerLog(data []byte) error {
-	return c.sendWithPath(data, c.cfg.ContainerPath)
+func (c *collectorService) GetURL() string {
+	return c.cfg.URL
 }
 
-func (c *collectorService) SendJobLog(data []byte) error {
-	return c.sendWithPath(data, c.cfg.JobPath)
+func (c *collectorService) SetURL(u string) {
+	c.cfg.URL = u
+}
+
+func (c *collectorService) Type() collectorType {
+	return c.cfg.collectorType
 }
 
 func (c *collectorService) BasicAuth() {
@@ -72,8 +93,31 @@ func (c *collectorService) BasicAuth() {
 	}
 }
 
-func (c *collectorService) sendWithPath(data []byte, path string) error {
-	req, err := http.NewRequest(http.MethodPost, hostJoinPath(c.cfg.URL, path), bytes.NewReader(data))
+// func (c *collectorService) SendLogWithURLString(data []byte, urlStr string) error {
+// 	u, err := url.Parse(urlStr)
+// 	if err != nil {
+// 		return fmt.Errorf("invalide url: %s, err: %w", urlStr, err)
+// 	}
+// 	return c.sendLogWithURL(data, u.String())
+// }
+
+func (c *collectorService) SendLog(data []byte) error {
+	return c.sendLogWithURL(data, c.cfg.URL)
+}
+
+func (c *collectorService) sendLogWithURL(data []byte, u string) error {
+	// block until ok
+	if c.limiter != nil {
+		r := c.limiter.ReserveN(time.Now(), len(data))
+		if !r.OK() {
+			newBurst := c.limiter.Burst() << 1
+			c.limiter.SetBurst(newBurst)
+			return fmt.Errorf("double of burst to %d", newBurst)
+		}
+		time.Sleep(r.Delay())
+	}
+
+	req, err := http.NewRequest(http.MethodPost, u, bytes.NewReader(data))
 	if err != nil {
 		return fmt.Errorf("new request failed: %w", err)
 	}

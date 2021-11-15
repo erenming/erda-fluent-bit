@@ -7,12 +7,18 @@ import (
 	"strings"
 	"time"
 
+	"github.com/erda-project/erda-for-fluent-bit/out_erda/sources/containerfile"
 	"github.com/fluent/fluent-bit-go/output"
+	"github.com/sirupsen/logrus"
 )
 
 var (
 	ErrKeyMustExist = errors.New("entry key must exist")
 	ErrTypeInvalid  = errors.New("invalid data type")
+)
+
+const (
+	remoteLogAnalysis = "log_analysis"
 )
 
 type Event struct {
@@ -21,38 +27,75 @@ type Event struct {
 }
 
 type Output struct {
-	cfg            Config
-	cache          *metadataCache
-	batchContainer *BatchSender
-	batchJob       *BatchSender
-	remoteService  remoteServiceInf
+	cfg              Config
+	cache            *metadataCache
+	batchContainer   *BatchSender
+	batchJob         *BatchSender
+	batchLogAnalysis *BatchSender
+	remoteService    remoteServiceInf
 
 	cancelFunc context.CancelFunc
 }
 
 func NewOutput(cfg Config) *Output {
-	cfg.RemoteConfig.Headers["Content-Type"] = "application/json; charset=UTF-8"
-	if cfg.CompressLevel > 0 {
-		cfg.RemoteConfig.Headers["Content-Encoding"] = "gzip"
-	}
-	svc := newCollectorService(cfg.RemoteConfig)
+	cfg.Init()
+	logrus.Infof("cfg: %+v", cfg)
+
+	containerCollector := newCollectorService(collectorConfig{
+		Headers:                cfg.RemoteConfig.Headers,
+		URL:                    hostJoinPath(cfg.RemoteConfig.URL, cfg.RemoteConfig.ContainerPath),
+		RequestTimeout:         cfg.RemoteConfig.RequestTimeout,
+		KeepAliveIdleTimeout:   cfg.RemoteConfig.KeepAliveIdleTimeout,
+		NetLimitBytesPerSecond: cfg.RemoteConfig.NetLimitBytesPerSecond,
+		BasicAuthUsername:      cfg.RemoteConfig.BasicAuthUsername,
+		BasicAuthPassword:      cfg.RemoteConfig.BasicAuthPassword,
+		collectorType:          centralCollector,
+	})
+
+	jobCollector := newCollectorService(collectorConfig{
+		Headers:                cfg.RemoteConfig.Headers,
+		URL:                    hostJoinPath(cfg.RemoteConfig.URL, cfg.RemoteConfig.JobPath),
+		RequestTimeout:         cfg.RemoteConfig.RequestTimeout,
+		KeepAliveIdleTimeout:   cfg.RemoteConfig.KeepAliveIdleTimeout,
+		NetLimitBytesPerSecond: cfg.RemoteConfig.NetLimitBytesPerSecond,
+		BasicAuthUsername:      cfg.RemoteConfig.BasicAuthUsername,
+		BasicAuthPassword:      cfg.RemoteConfig.BasicAuthPassword,
+		collectorType:          centralCollector,
+	})
+
+	logAnalysisCollector := newCollectorService(collectorConfig{
+		Headers:                cfg.RemoteConfig.Headers,
+		URL:                    cfg.RemoteConfig.URL,
+		RequestTimeout:         cfg.RemoteConfig.RequestTimeout,
+		KeepAliveIdleTimeout:   cfg.RemoteConfig.KeepAliveIdleTimeout,
+		NetLimitBytesPerSecond: cfg.RemoteConfig.NetLimitBytesPerSecond,
+		collectorType:          logAnalysis,
+	})
 
 	return &Output{
-		remoteService: svc,
-		cfg:           cfg,
-		cache:         newMetadataCache(cfg.DockerContainerRootPath, cfg.ContainerEnvInclude, cfg.DockerConfigSyncInterval),
+		cfg: cfg,
+		cache: newMetadataCache(containerfile.Config{
+			RootPath:           cfg.DockerContainerRootPath,
+			EnvIncludeList:     cfg.ContainerEnvInclude,
+			SyncInterval:       cfg.DockerConfigSyncInterval,
+			MaxExpiredDuration: cfg.DockerConfigMaxExpiredDuration,
+		}),
 		batchContainer: NewBatchSender(batchConfig{
 			BatchEventLimit:             cfg.BatchEventLimit,
-			BatchNetWriteBytesPerSecond: cfg.BatchNetWriteBytesPerSecond,
 			BatchEventContentLimitBytes: cfg.BatchEventContentLimitBytes,
-			send2remoteServer:           svc.SendContainerLog,
+			remoteServer:                containerCollector,
 			GzipLevel:                   cfg.CompressLevel,
 		}),
 		batchJob: NewBatchSender(batchConfig{
-			BatchEventLimit:             cfg.BatchEventLimit / 4,
-			BatchNetWriteBytesPerSecond: cfg.BatchNetWriteBytesPerSecond,
-			BatchEventContentLimitBytes: cfg.BatchEventContentLimitBytes / 4,
-			send2remoteServer:           svc.SendJobLog,
+			BatchEventLimit:             cfg.BatchEventLimit,
+			BatchEventContentLimitBytes: cfg.BatchEventContentLimitBytes,
+			remoteServer:                jobCollector,
+			GzipLevel:                   cfg.CompressLevel,
+		}),
+		batchLogAnalysis: NewBatchSender(batchConfig{
+			BatchEventLimit:             cfg.BatchEventLimit,
+			BatchEventContentLimitBytes: cfg.BatchEventContentLimitBytes,
+			remoteServer:                logAnalysisCollector,
 			GzipLevel:                   cfg.CompressLevel,
 		}),
 	}
@@ -80,32 +123,57 @@ func (o *Output) AddEvent(event *Event) int {
 		return output.FLB_RETRY
 	}
 
-	switch lg.Source {
-	case "job":
-		err = o.batchJob.SendLogEvent(lg)
-		if err != nil {
-			LogError("batchJob send failed", err)
-			return output.FLB_RETRY
+	if o.cfg.RemoteConfig.RemoteType == remoteLogAnalysis {
+		if o.all2LogAnalysis() || o.logAnalysisEmbed(lg) {
+			err := o.batchLogAnalysis.SendLogEvent(lg)
+			if err != nil {
+				LogError("batchLogAnalysis send failed", err)
+				return output.FLB_RETRY
+			}
 		}
-	default:
-		err = o.batchContainer.SendLogEvent(lg)
-		if err != nil {
-			LogError("batchContainer send failed", err)
-			return output.FLB_RETRY
+	} else {
+		switch lg.Source {
+		case "job":
+			err = o.batchJob.SendLogEvent(lg)
+			if err != nil {
+				LogError("batchJob send failed", err)
+				return output.FLB_RETRY
+			}
+		default:
+			err = o.batchContainer.SendLogEvent(lg)
+			if err != nil {
+				LogError("batchContainer send failed", err)
+				return output.FLB_RETRY
+			}
 		}
 	}
 
 	return output.FLB_OK
 }
 
+func (o *Output) logAnalysisEmbed(lg *LogEvent) bool {
+	return lg.logAnalysisURL != ""
+}
+
+func (o *Output) all2LogAnalysis() bool {
+	return collectorType(o.cfg.RemoteConfig.RemoteType) == logAnalysis && o.cfg.RemoteConfig.URL != ""
+}
+
 func (o *Output) Flush() error {
-	err := o.batchContainer.FlushAll()
-	if err != nil {
-		return fmt.Errorf("batchContainer flush error: %w", err)
-	}
-	err = o.batchJob.FlushAll()
-	if err != nil {
-		return fmt.Errorf("batchJob flush error: %w", err)
+	if o.cfg.RemoteConfig.RemoteType == remoteLogAnalysis {
+		err := o.batchLogAnalysis.FlushAll()
+		if err != nil {
+			return fmt.Errorf("batchLogAnalysis flush error: %w", err)
+		}
+	} else {
+		err := o.batchContainer.FlushAll()
+		if err != nil {
+			return fmt.Errorf("batchContainer flush error: %w", err)
+		}
+		err = o.batchJob.FlushAll()
+		if err != nil {
+			return fmt.Errorf("batchJob flush error: %w", err)
+		}
 	}
 	return nil
 }
@@ -147,6 +215,7 @@ func (o *Output) Process(timestamp time.Time, record map[interface{}]interface{}
 		Content:   bs2str(stripNewLine(content.([]byte))),
 		Timestamp: t.UnixNano(),
 		Tags:      make(map[string]string),
+		Labels:    make(map[string]string),
 	}
 
 	err = o.enrichWithMetadata(lg, record)
@@ -245,6 +314,9 @@ func (o *Output) businessLogic(lg *LogEvent) {
 		lg.ID = val
 		lg.Source = "job"
 	}
+
+	lg.logAnalysisURL = lg.Tags["monitor_log_collector"]
+	delete(lg.Tags, "monitor_log_collector")
 
 	internalPrefix := "dice_"
 	for k, v := range lg.Tags {

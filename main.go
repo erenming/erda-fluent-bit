@@ -1,7 +1,6 @@
 package main
 
 import (
-	"os"
 	"time"
 	"unsafe"
 
@@ -22,32 +21,27 @@ var outErdaInstance *outerda.Output
 
 const (
 	defaultEventLimit             = 5000
-	defaultNetWriteBytesPerSecond = 10 * 1024 * 1024 // 10MB/s
-	defaultEventContentBytesLimit = 8 * 1024 * 1024  // 8MB, ~= 3MB(after compressed)
+	defaultNetLimitBytesPerSecond = 1 * 1024 * 1024 // 1MB/s
+	defaultEventContentBytesLimit = 3 * 1024 * 1024 // 3MB * 25% = 0.75MB < 1MB/s
 )
 
 func defaultConfig() outerda.Config {
-	erdaURL := "http://" + os.Getenv("COLLECTOR_ADDR")
-	if os.Getenv("DICE_IS_EDGE") == "true" {
-		erdaURL = os.Getenv("COLLECTOR_PUBLIC_URL")
-	}
-
 	return outerda.Config{
 		RemoteConfig: outerda.RemoteConfig{
-			Headers:              map[string]string{},
-			URL:                  erdaURL,
-			JobPath:              "/collect/logs/job",
-			ContainerPath:        "/collect/logs/container",
-			RequestTimeout:       time.Second * 10,
-			KeepAliveIdleTimeout: time.Second * 60,
+			Headers:                map[string]string{},
+			JobPath:                "/collect/logs/job",
+			ContainerPath:          "/collect/logs/container",
+			RequestTimeout:         time.Second * 10,
+			KeepAliveIdleTimeout:   time.Second * 60,
+			NetLimitBytesPerSecond: defaultNetLimitBytesPerSecond,
 		},
-		CompressLevel:               3,
-		DockerContainerRootPath:     "/var/lib/docker/containers",
-		DockerConfigSyncInterval:    time.Second * 20,
+		CompressLevel:                  3,
+		DockerContainerRootPath:        "/var/lib/docker/containers",
+		DockerConfigSyncInterval:       10 * time.Minute,
+		DockerConfigMaxExpiredDuration: time.Hour,
 		// usual format: /var/lib/docker/containers/<id>/<id>-json.log
 		DockerContainerIDIndex:      -2,
 		BatchEventLimit:             defaultEventLimit,
-		BatchNetWriteBytesPerSecond: defaultNetWriteBytesPerSecond,
 		BatchEventContentLimitBytes: defaultEventContentBytesLimit,
 	}
 }
@@ -69,8 +63,6 @@ func FLBPluginInit(plugin unsafe.Pointer) int {
 		outerda.LogError("load error: %s", err)
 		return output.FLB_ERROR
 	}
-
-	logrus.Infof("cfg: %+v", cfg)
 
 	outErdaInstance = outerda.NewOutput(cfg)
 	if err := outErdaInstance.Start(); err != nil {
