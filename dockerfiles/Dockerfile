@@ -7,7 +7,7 @@ ENV GOPROXY="https://goproxy.cn"
 
 RUN make build
 
-FROM amd64/debian:buster-slim as builder
+FROM registry.erda.cloud/retag/debian:buster-slim as builder
 
 # Fluent Bit version
 ENV FLB_MAJOR 1
@@ -73,12 +73,12 @@ COPY conf/fluent-bit.conf \
 COPY --from=gobuilder /build/out_erda.so /fluent-bit/bin/
 RUN ldd /fluent-bit/bin/out_erda.so
 
-COPY --from=amd64/busybox:1.31.1 /bin/busybox /bin/busybox
+COPY --from=registry.erda.cloud/retag/busybox:1.31.1 /bin/busybox /bin/busybox
 
 RUN chmod 555 /bin/busybox && \
     /bin/busybox --install -s /usr/local/bin
 
-FROM amd64/debian:buster-slim
+FROM registry.erda.cloud/retag/debian:buster-slim
 MAINTAINER Eduardo Silva <eduardo@treasure-data.com>
 LABEL Description="Fluent Bit docker image for testing branch master" Vendor="Fluent Organization" Version="1.1"
 RUN true
