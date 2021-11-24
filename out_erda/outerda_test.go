@@ -297,3 +297,41 @@ func Test_stripNewLine(t *testing.T) {
 		})
 	}
 }
+
+func TestOutput_enrichWithErdaMetadata(t *testing.T) {
+	type args struct {
+		lg     *LogEvent
+		record map[interface{}]interface{}
+	}
+	tests := []struct {
+		name string
+		args args
+		want *LogEvent
+	}{
+		{
+			name: "",
+			args: args{
+				lg: &LogEvent{
+					Tags: map[string]string{},
+				},
+				record: map[interface{}]interface{}{
+					"__meta_erda_level":      "INFO",
+					"__meta_erda_request_id": "abc",
+				},
+			},
+			want: &LogEvent{
+				Tags: map[string]string{
+					"level":      "INFO",
+					"request_id": "abc",
+				},
+			},
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			o := &Output{}
+			o.enrichWithErdaMetadata(tt.args.lg, tt.args.record)
+			assert.Equal(t, tt.want, tt.args.lg)
+		})
+	}
+}
