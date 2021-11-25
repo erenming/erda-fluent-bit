@@ -12,7 +12,7 @@ import (
 	"github.com/sirupsen/logrus"
 )
 
-const metaErdaPrefix = "__meta_erda_"
+const metaErdaPrefix = "meta_erda_"
 
 var (
 	ErrKeyMustExist = errors.New("entry key must exist")
@@ -87,18 +87,21 @@ func NewOutput(cfg Config) *Output {
 			BatchEventContentLimitBytes: cfg.BatchEventContentLimitBytes,
 			remoteServer:                containerCollector,
 			GzipLevel:                   cfg.CompressLevel,
+			Debug:                       cfg.DebugMode,
 		}),
 		batchJob: NewBatchSender(batchConfig{
 			BatchEventLimit:             cfg.BatchEventLimit,
 			BatchEventContentLimitBytes: cfg.BatchEventContentLimitBytes,
 			remoteServer:                jobCollector,
 			GzipLevel:                   cfg.CompressLevel,
+			Debug:                       cfg.DebugMode,
 		}),
 		batchLogAnalysis: NewBatchSender(batchConfig{
 			BatchEventLimit:             cfg.BatchEventLimit,
 			BatchEventContentLimitBytes: cfg.BatchEventContentLimitBytes,
 			remoteServer:                logAnalysisCollector,
 			GzipLevel:                   cfg.CompressLevel,
+			Debug:                       cfg.DebugMode,
 		}),
 	}
 }

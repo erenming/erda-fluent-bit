@@ -7,7 +7,10 @@ import (
 	"io"
 
 	jsoniter "github.com/json-iterator/go"
+	"github.com/sirupsen/logrus"
 )
+
+const debugModeOn = "On"
 
 var (
 	json = jsoniter.ConfigCompatibleWithStandardLibrary
@@ -40,6 +43,7 @@ type batchConfig struct {
 	BatchEventLimit             int
 	BatchEventContentLimitBytes int
 	GzipLevel                   int
+	Debug                       string
 }
 
 type gzipper struct {
@@ -126,6 +130,8 @@ func (bs *BatchSender) flush(data []*LogEvent) error {
 		}
 		buf = cbuf
 	}
+
+	logrus.Debugf("[out_erda] flushed data: %s", string(buf))
 
 	err = bs.cfg.remoteServer.SendLog(buf)
 	if err != nil {

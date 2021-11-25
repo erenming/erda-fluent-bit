@@ -10,6 +10,7 @@ import (
 	"unsafe"
 
 	"github.com/fluent/fluent-bit-go/output"
+	"github.com/sirupsen/logrus"
 )
 
 const compressRatio = 0.25
@@ -24,6 +25,7 @@ type Config struct {
 	DockerContainerIDIndex         int           `fluentbit:"docker_container_id_index"`
 	DockerConfigSyncInterval       time.Duration `fluentbit:"docker_config_sync_interval"`
 	DockerConfigMaxExpiredDuration time.Duration `fluentbit:"docker_config_max_expired_duration"`
+	DebugMode                      string        `fluentbit:"debug_mode"`
 
 	// 日志事件的最大个数限制
 	BatchEventLimit int `fluentbit:"batch_event_limit"`
@@ -62,6 +64,10 @@ func (cfg *Config) Init() {
 
 	if float64(cfg.BatchEventContentLimitBytes)*compressRatio > float64(cfg.RemoteConfig.NetLimitBytesPerSecond) {
 		cfg.BatchEventContentLimitBytes = int(float64(cfg.RemoteConfig.NetLimitBytesPerSecond)/compressRatio) / 2
+	}
+
+	if lv, err := logrus.ParseLevel(os.Getenv("LOG_LEVEL")); err != nil {
+		logrus.SetLevel(lv)
 	}
 }
 
