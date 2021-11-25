@@ -10,8 +10,6 @@ import (
 	"github.com/sirupsen/logrus"
 )
 
-const debugModeOn = "On"
-
 var (
 	json = jsoniter.ConfigCompatibleWithStandardLibrary
 )
@@ -133,7 +131,6 @@ func (bs *BatchSender) flush(data []*LogEvent) error {
 		}
 		buf = cbuf
 	}
-
 
 	err = bs.cfg.remoteServer.SendLog(buf)
 	if err != nil {
