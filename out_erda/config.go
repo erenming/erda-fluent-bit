@@ -10,6 +10,7 @@ import (
 	"unsafe"
 
 	"github.com/fluent/fluent-bit-go/output"
+	"github.com/sirupsen/logrus"
 )
 
 const compressRatio = 0.25
@@ -62,6 +63,12 @@ func (cfg *Config) Init() {
 
 	if float64(cfg.BatchEventContentLimitBytes)*compressRatio > float64(cfg.RemoteConfig.NetLimitBytesPerSecond) {
 		cfg.BatchEventContentLimitBytes = int(float64(cfg.RemoteConfig.NetLimitBytesPerSecond)/compressRatio) / 2
+	}
+
+	if lv, err := logrus.ParseLevel(os.Getenv("LOG_LEVEL")); err != nil {
+		logrus.Errorf("parse level: %s", err)
+	} else {
+		logrus.SetLevel(lv)
 	}
 }
 

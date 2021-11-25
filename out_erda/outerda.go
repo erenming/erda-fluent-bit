@@ -12,6 +12,8 @@ import (
 	"github.com/sirupsen/logrus"
 )
 
+const metaErdaPrefix = "meta_erda_"
+
 var (
 	ErrKeyMustExist = errors.New("entry key must exist")
 	ErrTypeInvalid  = errors.New("invalid data type")
@@ -188,6 +190,9 @@ func (o *Output) Process(timestamp time.Time, record map[interface{}]interface{}
 	// if err != nil {
 	// 	return nil, err
 	// }
+	if logrus.IsLevelEnabled(logrus.DebugLevel) {
+		logrus.Debugf("record: %s", jsonRecord(record))
+	}
 
 	stream, err := getAndConvert("stream", record, []byte("stdout"))
 	if err != nil {
@@ -254,6 +259,8 @@ func (o *Output) enrichWithMetadata(lg *LogEvent, record map[interface{}]interfa
 		return err
 	}
 
+	o.enrichWithErdaMetadata(lg, record)
+
 	o.businessLogic(lg)
 	return nil
 }
@@ -264,6 +271,21 @@ func (o *Output) getDockerContainerIDFromLogPath(logPath string) string {
 		return items[len(items)+o.cfg.DockerContainerIDIndex]
 	} else {
 		return items[o.cfg.DockerContainerIDIndex]
+	}
+}
+
+func (o *Output) enrichWithErdaMetadata(lg *LogEvent, record map[interface{}]interface{}) {
+	for k, v := range record {
+		ks, ok := k.(string)
+		if !ok {
+			continue
+		}
+		if idx := strings.Index(ks, metaErdaPrefix); idx != -1 {
+			vs, ok := v.([]byte)
+			if ok {
+				lg.Tags[ks[len(metaErdaPrefix):]] = bs2str(vs)
+			}
+		}
 	}
 }
 
@@ -317,6 +339,10 @@ func (o *Output) businessLogic(lg *LogEvent) {
 
 	lg.logAnalysisURL = lg.Tags["monitor_log_collector"]
 	delete(lg.Tags, "monitor_log_collector")
+
+	if v, ok := lg.Tags["request_id"]; ok {
+		lg.Tags["request-id"] = v
+	}
 
 	internalPrefix := "dice_"
 	for k, v := range lg.Tags {

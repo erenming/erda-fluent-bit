@@ -13,30 +13,6 @@ func bs2str(bs []byte) string {
 	return *(*string)(unsafe.Pointer(&bs))
 }
 
-type RecordStruct struct {
-	Time   string `json:"time,omitempty"`
-	Log    string `json:"log,omitempty"`
-	Stream string `json:"stream,omitempty"`
-	Offset uint64 `json:"offset,omitempty"`
-}
-
-func MarshalRecord(record map[interface{}]interface{}) ([]byte, error) {
-	rs := &RecordStruct{}
-	if record["time"] != nil {
-		rs.Time = string(record["time"].([]byte))
-	}
-	if record["log"] != nil {
-		rs.Log = string(record["log"].([]byte))
-	}
-	if record["stream"] != nil {
-		rs.Stream = string(record["stream"].([]byte))
-	}
-	if record["offset"] != nil {
-		rs.Offset = record["offset"].(uint64)
-	}
-	return json.Marshal(rs)
-}
-
 func getAndConvert(key string, record map[interface{}]interface{}, defaultVal interface{}) (interface{}, error) {
 	val, ok := record[key]
 	if !ok {
@@ -44,7 +20,6 @@ func getAndConvert(key string, record map[interface{}]interface{}, defaultVal in
 			return nil, fmt.Errorf("key %s: %w", key, ErrKeyMustExist)
 		} else {
 			logrus.Infof("key %s not existed, use default %+v", key, defaultVal)
-			// PrettyRecord(record, 1)
 			return defaultVal, nil
 		}
 	}
@@ -97,4 +72,9 @@ func LogInfo(message string, err error) {
 func basicAuth(username, password string) string {
 	auth := username + ":" + password
 	return base64.StdEncoding.EncodeToString([]byte(auth))
+}
+
+func jsonRecord(record map[interface{}]interface{}) string {
+	buf, _ := json.Marshal(record)
+	return string(buf)
 }

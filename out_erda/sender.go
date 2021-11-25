@@ -7,6 +7,7 @@ import (
 	"io"
 
 	jsoniter "github.com/json-iterator/go"
+	"github.com/sirupsen/logrus"
 )
 
 var (
@@ -117,6 +118,10 @@ func (bs *BatchSender) flush(data []*LogEvent) error {
 	buf, err := json.Marshal(data)
 	if err != nil {
 		return fmt.Errorf("json marshal: %w", err)
+	}
+
+	if logrus.IsLevelEnabled(logrus.DebugLevel) {
+		logrus.Debugf("[out_erda] flushed json data: %s", string(buf))
 	}
 
 	if bs.cfg.GzipLevel > 0 && bs.compressor != nil {
