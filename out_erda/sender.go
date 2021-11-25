@@ -43,7 +43,6 @@ type batchConfig struct {
 	BatchEventLimit             int
 	BatchEventContentLimitBytes int
 	GzipLevel                   int
-	Debug                       string
 }
 
 type gzipper struct {
@@ -123,6 +122,10 @@ func (bs *BatchSender) flush(data []*LogEvent) error {
 		return fmt.Errorf("json marshal: %w", err)
 	}
 
+	if logrus.IsLevelEnabled(logrus.DebugLevel) {
+		logrus.Debugf("[out_erda] flushed json data: %s", string(buf))
+	}
+
 	if bs.cfg.GzipLevel > 0 && bs.compressor != nil {
 		cbuf, err := bs.compress(buf)
 		if err != nil {
@@ -131,7 +134,6 @@ func (bs *BatchSender) flush(data []*LogEvent) error {
 		buf = cbuf
 	}
 
-	logrus.Debugf("[out_erda] flushed data: %s", string(buf))
 
 	err = bs.cfg.remoteServer.SendLog(buf)
 	if err != nil {

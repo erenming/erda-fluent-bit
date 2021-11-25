@@ -25,7 +25,6 @@ type Config struct {
 	DockerContainerIDIndex         int           `fluentbit:"docker_container_id_index"`
 	DockerConfigSyncInterval       time.Duration `fluentbit:"docker_config_sync_interval"`
 	DockerConfigMaxExpiredDuration time.Duration `fluentbit:"docker_config_max_expired_duration"`
-	DebugMode                      string        `fluentbit:"debug_mode"`
 
 	// 日志事件的最大个数限制
 	BatchEventLimit int `fluentbit:"batch_event_limit"`
@@ -67,6 +66,8 @@ func (cfg *Config) Init() {
 	}
 
 	if lv, err := logrus.ParseLevel(os.Getenv("LOG_LEVEL")); err != nil {
+		logrus.Errorf("parse level: %s", err)
+	} else {
 		logrus.SetLevel(lv)
 	}
 }

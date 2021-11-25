@@ -87,21 +87,18 @@ func NewOutput(cfg Config) *Output {
 			BatchEventContentLimitBytes: cfg.BatchEventContentLimitBytes,
 			remoteServer:                containerCollector,
 			GzipLevel:                   cfg.CompressLevel,
-			Debug:                       cfg.DebugMode,
 		}),
 		batchJob: NewBatchSender(batchConfig{
 			BatchEventLimit:             cfg.BatchEventLimit,
 			BatchEventContentLimitBytes: cfg.BatchEventContentLimitBytes,
 			remoteServer:                jobCollector,
 			GzipLevel:                   cfg.CompressLevel,
-			Debug:                       cfg.DebugMode,
 		}),
 		batchLogAnalysis: NewBatchSender(batchConfig{
 			BatchEventLimit:             cfg.BatchEventLimit,
 			BatchEventContentLimitBytes: cfg.BatchEventContentLimitBytes,
 			remoteServer:                logAnalysisCollector,
 			GzipLevel:                   cfg.CompressLevel,
-			Debug:                       cfg.DebugMode,
 		}),
 	}
 }
@@ -193,6 +190,9 @@ func (o *Output) Process(timestamp time.Time, record map[interface{}]interface{}
 	// if err != nil {
 	// 	return nil, err
 	// }
+	if logrus.IsLevelEnabled(logrus.DebugLevel) {
+		logrus.Debugf("record: %s", jsonRecord(record))
+	}
 
 	stream, err := getAndConvert("stream", record, []byte("stdout"))
 	if err != nil {
@@ -281,9 +281,9 @@ func (o *Output) enrichWithErdaMetadata(lg *LogEvent, record map[interface{}]int
 			continue
 		}
 		if idx := strings.Index(ks, metaErdaPrefix); idx != -1 {
-			vs, ok := v.(string)
+			vs, ok := v.([]byte)
 			if ok {
-				lg.Tags[ks[len(metaErdaPrefix):]] = vs
+				lg.Tags[ks[len(metaErdaPrefix):]] = bs2str(vs)
 			}
 		}
 	}

@@ -315,8 +315,8 @@ func TestOutput_enrichWithErdaMetadata(t *testing.T) {
 					Tags: map[string]string{},
 				},
 				record: map[interface{}]interface{}{
-					"meta_erda_level":      "INFO",
-					"meta_erda_request_id": "abc",
+					"meta_erda_level":      []byte( "INFO"),
+					"meta_erda_request_id": []byte( "abc"),
 				},
 			},
 			want: &LogEvent{
