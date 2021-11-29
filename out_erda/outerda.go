@@ -12,7 +12,7 @@ import (
 	"github.com/sirupsen/logrus"
 )
 
-const metaErdaPrefix = "meta_erda_"
+const metaErdaPrefix = "__meta_erda_"
 
 var (
 	ErrKeyMustExist = errors.New("entry key must exist")
@@ -30,7 +30,7 @@ type Event struct {
 
 type Output struct {
 	cfg              Config
-	cache            *metadataCache
+	meta             *metadata
 	batchContainer   *BatchSender
 	batchJob         *BatchSender
 	batchLogAnalysis *BatchSender
@@ -76,11 +76,14 @@ func NewOutput(cfg Config) *Output {
 
 	return &Output{
 		cfg: cfg,
-		cache: newMetadataCache(containerfile.Config{
-			RootPath:           cfg.DockerContainerRootPath,
-			EnvIncludeList:     cfg.ContainerEnvInclude,
-			SyncInterval:       cfg.DockerConfigSyncInterval,
-			MaxExpiredDuration: cfg.DockerConfigMaxExpiredDuration,
+		meta: newMetadata(metadataConfig{
+			dockerMetadataEnable: cfg.DockerContainerMetadataEnable,
+			dcfg: containerfile.Config{
+				RootPath:           cfg.DockerContainerRootPath,
+				EnvIncludeList:     cfg.ContainerEnvInclude,
+				SyncInterval:       cfg.DockerConfigSyncInterval,
+				MaxExpiredDuration: cfg.DockerConfigMaxExpiredDuration,
+			},
 		}),
 		batchContainer: NewBatchSender(batchConfig{
 			BatchEventLimit:             cfg.BatchEventLimit,
@@ -104,13 +107,7 @@ func NewOutput(cfg Config) *Output {
 }
 
 func (o *Output) Start() error {
-	err := o.cache.dockerConfig.Init()
-	if err != nil {
-		return fmt.Errorf("cannot init cache: %w", err)
-	}
-
-	o.cache.dockerConfig.Start()
-	return nil
+	return o.meta.Start()
 }
 
 // AddEvent accepts a Record, process and send to the buffer, flushing the buffer if it is full
@@ -194,6 +191,10 @@ func (o *Output) Process(timestamp time.Time, record map[interface{}]interface{}
 		logrus.Debugf("record: %s", jsonRecord(record))
 	}
 
+	id, err := getAndConvert("id", record, nil)
+	if err != nil {
+		return nil, err
+	}
 	stream, err := getAndConvert("stream", record, []byte("stdout"))
 	if err != nil {
 		return nil, err
@@ -214,7 +215,7 @@ func (o *Output) Process(timestamp time.Time, record map[interface{}]interface{}
 	logPath := getLogPath(record)
 
 	lg := &LogEvent{
-		ID:        o.getDockerContainerIDFromLogPath(logPath),
+		ID:        bs2str(id.([]byte)),
 		Source:    "container",
 		Stream:    bs2str(stream.([]byte)),
 		Content:   bs2str(stripNewLine(content.([]byte))),
@@ -249,87 +250,26 @@ type nestedKubernetes struct {
 }
 
 func (o *Output) enrichWithMetadata(lg *LogEvent, record map[interface{}]interface{}) error {
-	// k8sInfo, ok := record["kubernetes"]
-	// if ok {
-	// 	o.enrichWithKubernetesMetadata(lg, k8sInfo)
-	// }
-
-	err := o.cache.EnrichMetadataWithContainerInfo(lg.ID, lg)
+	err := o.meta.EnrichMetadata(lg, &eventExtInfo{
+		containerID: lg.ID,
+		record:      record,
+	})
 	if err != nil {
 		return err
 	}
-
-	o.enrichWithErdaMetadata(lg, record)
 
 	o.businessLogic(lg)
 	return nil
 }
 
-func (o *Output) getDockerContainerIDFromLogPath(logPath string) string {
-	items := strings.Split(logPath, "/")
-	if o.cfg.DockerContainerIDIndex < 0 {
-		return items[len(items)+o.cfg.DockerContainerIDIndex]
-	} else {
-		return items[o.cfg.DockerContainerIDIndex]
-	}
-}
-
-func (o *Output) enrichWithErdaMetadata(lg *LogEvent, record map[interface{}]interface{}) {
-	for k, v := range record {
-		ks, ok := k.(string)
-		if !ok {
-			continue
-		}
-		if idx := strings.Index(ks, metaErdaPrefix); idx != -1 {
-			vs, ok := v.([]byte)
-			if ok {
-				lg.Tags[ks[len(metaErdaPrefix):]] = bs2str(vs)
-			}
-		}
-	}
-}
-
-func (o *Output) enrichWithKubernetesMetadata(lg *LogEvent, k8sInfo interface{}) {
-	nk := unmarshalNestedKubernetes(k8sInfo)
-	if nk == nil {
-		return
-	}
-
-	lg.ID = nk.DockerID
-	lg.Tags["pod_ip"] = nk.PodID
-	lg.Tags["pod_name"] = nk.PodName
-	lg.Tags["pod_namespace"] = nk.NamespaceName
-	lg.Tags["pod_id"] = nk.PodID
-	lg.Tags["container_id"] = nk.DockerID
-	lg.Tags["container_name"] = nk.ContainerName
-}
-
-func unmarshalNestedKubernetes(data interface{}) *nestedKubernetes {
-	mm, ok := data.(map[interface{}]interface{})
-	if !ok {
-		return nil
-	}
-	nk := &nestedKubernetes{}
-	if v, ok := mm["pod_name"]; ok {
-		nk.PodName = bs2str(v.([]byte))
-	}
-	if v, ok := mm["namespace_name"]; ok {
-		nk.NamespaceName = bs2str(v.([]byte))
-	}
-	if v, ok := mm["pod_id"]; ok {
-		nk.PodID = bs2str(v.([]byte))
-	}
-	if v, ok := mm["docker_id"]; ok {
-		nk.DockerID = bs2str(v.([]byte))
-	}
-	if v, ok := mm["container_image"]; ok {
-		nk.ContainerImage = bs2str(v.([]byte))
-	}
-	if v, ok := mm["container_name"]; ok {
-		nk.ContainerName = bs2str(v.([]byte))
-	}
-	return nk
-}
+// func (o *Output) getIDFromLogPath(logPath string) string {
+// 	items := strings.Split(logPath, "/")
+// 	if o.cfg.DockerContainerIDIndex < 0 {
+// 		return items[len(items)+o.cfg.DockerContainerIDIndex]
+// 	} else {
+// 		return items[o.cfg.DockerContainerIDIndex]
+// 	}
+// }
 
 func (o *Output) businessLogic(lg *LogEvent) {
 	if val, ok := lg.Tags["terminus_define_tag"]; ok {
@@ -352,17 +292,9 @@ func (o *Output) businessLogic(lg *LogEvent) {
 	}
 }
 
-func (o *Output) compress() ([]byte, error) {
-	return nil, nil
-}
-
-func (o *Output) doHTTPRequest(data []byte) error {
-	return nil
-}
-
 func (o *Output) Close() error {
 	if o.cancelFunc != nil {
 		o.cancelFunc()
 	}
-	return o.cache.dockerConfig.Close()
+	return o.meta.Close()
 }

@@ -39,10 +39,9 @@ func defaultConfig() outerda.Config {
 		DockerContainerRootPath:        "/var/lib/docker/containers",
 		DockerConfigSyncInterval:       10 * time.Minute,
 		DockerConfigMaxExpiredDuration: time.Hour,
-		// usual format: /var/lib/docker/containers/<id>/<id>-json.log
-		DockerContainerIDIndex:      -2,
-		BatchEventLimit:             defaultEventLimit,
-		BatchEventContentLimitBytes: defaultEventContentBytesLimit,
+		DockerContainerMetadataEnable:  true,
+		BatchEventLimit:                defaultEventLimit,
+		BatchEventContentLimitBytes:    defaultEventContentBytesLimit,
 	}
 }
 

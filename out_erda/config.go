@@ -21,8 +21,8 @@ type Config struct {
 	CompressLevel int `fluentbit:"compress_level"`
 	// environment key list
 	ContainerEnvInclude            []string      `fluentbit:"container_env_include"`
+	DockerContainerMetadataEnable  bool          `fluentbit:"docker_container_metadata_enable"`
 	DockerContainerRootPath        string        `fluentbit:"docker_container_root_path"`
-	DockerContainerIDIndex         int           `fluentbit:"docker_container_id_index"`
 	DockerConfigSyncInterval       time.Duration `fluentbit:"docker_config_sync_interval"`
 	DockerConfigMaxExpiredDuration time.Duration `fluentbit:"docker_config_max_expired_duration"`
 
@@ -65,10 +65,10 @@ func (cfg *Config) Init() {
 		cfg.BatchEventContentLimitBytes = int(float64(cfg.RemoteConfig.NetLimitBytesPerSecond)/compressRatio) / 2
 	}
 
-	if lv, err := logrus.ParseLevel(os.Getenv("LOG_LEVEL")); err != nil {
-		logrus.Errorf("parse level: %s", err)
-	} else {
-		logrus.SetLevel(lv)
+	if v := os.Getenv("LOG_LEVEL"); v != "" {
+		if lv, err := logrus.ParseLevel(v); err == nil {
+			logrus.SetLevel(lv)
+		}
 	}
 }
 
@@ -108,7 +108,12 @@ func setValue(dst reflect.Value, finder func(key string) string) error {
 					return fmt.Errorf("convert field %s failed: %w ", val, err)
 				}
 				v.SetInt(int64(tmp))
-
+			case bool:
+				tmp, err := strconv.ParseBool(strings.ToLower(data))
+				if err != nil {
+					return fmt.Errorf("convert field %s failed: %w", val, err)
+				}
+				v.SetBool(tmp)
 			case string:
 				v.SetString(data)
 			case []string:
