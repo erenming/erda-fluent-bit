@@ -60,15 +60,17 @@ RUN make -j $(getconf _NPROCESSORS_ONLN)
 RUN install bin/fluent-bit /fluent-bit/bin/
 
 # Configuration files
-COPY conf/fluent-bit.conf \
-     conf/parsers.conf \
+#COPY conf/fluent-bit.conf \
+#     conf/parsers.conf \
 #     conf/parsers_ambassador.conf \
 #     conf/parsers_java.conf \
 #     conf/parsers_extra.conf \
 #     conf/parsers_openstack.conf \
 #     conf/parsers_cinder.conf \
-     conf/plugins.conf \
-     /fluent-bit/etc/
+#     conf/plugins.conf \
+#     /fluent-bit/etc/
+
+COPY conf/ /fluent-bit/etc/
 
 COPY --from=gobuilder /build/out_erda.so /fluent-bit/bin/
 RUN ldd /fluent-bit/bin/out_erda.so
@@ -128,4 +130,4 @@ COPY --from=builder /usr/local/bin/ /usr/local/bin/
 COPY --from=builder /bin/busybox /bin/
 
 # Entry point
-CMD ["./fluent-bit/bin/fluent-bit", "-c", "/fluent-bit/etc/fluent-bit.conf"]
+CMD ["./fluent-bit/bin/fluent-bit", "-c", "/fluent-bit/etc/node/fluent-bit.conf"]
