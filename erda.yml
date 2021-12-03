@@ -23,8 +23,8 @@ services:
     envs:
       COLLECTOR_AUTH_PASSWORD: G$9767bP32drYFPWrK4XMLRMTatiM6cU
       COLLECTOR_AUTH_USERNAME: collector
-      # if you don't want to enable log analysis, set value to xxx
-      OUTPUT_LOG_ANALYSIS_MATCH: "*"
+      # if you don't want to enable log analysis, set value to value that not equal docker-log
+      OUTPUT_LOG_ANALYSIS_MATCH: docker-log
       OUTPUT_BATCH_EVENT_LIMIT: 2500
       # OUTPUT_BATCH_TRIGGER_CONTENT_LIMIT_BYTES * compressRatio < OUTPUT_NET_LIMIT_BYTES_PER_SECOND
       # 3MB * 0.25  < 1MB
