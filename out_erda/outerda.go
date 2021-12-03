@@ -193,7 +193,7 @@ func (o *Output) Process(timestamp time.Time, record map[interface{}]interface{}
 
 	id, err := getAndConvert("id", record, nil)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("record: %s, err: %w", jsonRecord(record), err)
 	}
 	stream, err := getAndConvert("stream", record, []byte("stdout"))
 	if err != nil {
