@@ -5,8 +5,9 @@ set -o errexit -o nounset -o pipefail
 v="$(head -n 1 VERSION)"
 v="${v}-$(date '+%Y%m%d')-$(git rev-parse --short HEAD)"
 
-if [[ -n "$IMAGE_TAG}"]]; then
-  v=${IMAGE_TAG}
+t=${IMAGE_TAG:-}
+if [[ -n "$t" ]]; then
+  v=$t
 fi
 
 echo "version=${v}"
