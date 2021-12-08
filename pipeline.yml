@@ -3,7 +3,6 @@ version: "1.1"
 on:
   push:
     branches:
-      - master
       - release/*
     tags:
       - v*
@@ -37,6 +36,7 @@ stages:
       - release:
           alias: release-fluent-bit
           params:
+            tag_version: ${{ outputs.extract-repo-version.version }}
             check_diceyml: false
             dice_yml: ${{ dirs.fluent-bit }}/erda.yml
             image:
