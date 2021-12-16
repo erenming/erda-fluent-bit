@@ -37,7 +37,6 @@ func defaultConfig() outerda.Config {
 			KeepAliveIdleTimeout:   time.Second * 60,
 			NetLimitBytesPerSecond: defaultNetLimitBytesPerSecond,
 		},
-		Enable:                         true,
 		CompressLevel:                  3,
 		DockerContainerRootPath:        "/var/lib/docker/containers",
 		DockerConfigSyncInterval:       10 * time.Minute,
