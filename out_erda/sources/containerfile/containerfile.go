@@ -23,8 +23,7 @@ type DockerContainerInfo struct {
 	EnvMap map[string]string
 	Labels map[string]string
 
-	// for debug
-	configFilePath string
+	configFilePath string // for debug
 	lastUsed       time.Time
 }
 
@@ -130,7 +129,7 @@ func (ci *ContainerInfoCenter) watchFileChange() {
 			}
 			if (event.Op & fsnotify.Create) == fsnotify.Create {
 				f := filepath.Join(event.Name, configJson)
-				time.Sleep(2 * time.Second) // in case flushing
+				time.Sleep(time.Second) // wait for flushing
 				dinfo, err := ci.readConfigFile(f)
 				if err != nil {
 					logrus.Errorf("readConfigFile event<%s> fialed: %s", event.Name, err)

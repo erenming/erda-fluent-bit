@@ -12,8 +12,8 @@ import (
 
 func BenchmarkOutput_Process(b *testing.B) {
 	o := &Output{
-		cfg:   mockCfg,
-		cache: mockCache(false),
+		cfg:  mockCfg,
+		meta: mockCache(false),
 	}
 	b.ReportAllocs()
 	for i := 0; i < b.N; i++ {
@@ -40,8 +40,8 @@ func TestOutput_Process(t *testing.T) {
 			name: "normal container",
 			fields: fields{
 				output: &Output{
-					cfg:   mockCfg,
-					cache: mockCache(false),
+					cfg:  mockCfg,
+					meta: mockCache(false),
 				}},
 			args: args{
 				timestamp: mockTimestamp,
@@ -74,8 +74,8 @@ func TestOutput_Process(t *testing.T) {
 			name: "normal job",
 			fields: fields{
 				output: &Output{
-					cfg:   mockCfg,
-					cache: mockCache(true),
+					cfg:  mockCfg,
+					meta: mockCache(true),
 				}},
 			args: args{
 				timestamp: mockTimestamp,
@@ -109,8 +109,8 @@ func TestOutput_Process(t *testing.T) {
 			name: "invalid Record",
 			fields: fields{
 				output: &Output{
-					cfg:   mockCfg,
-					cache: mockCache(false),
+					cfg:  mockCfg,
+					meta: mockCache(false),
 				}},
 			args: args{
 				timestamp: mockTimestamp,
@@ -125,12 +125,13 @@ func TestOutput_Process(t *testing.T) {
 			name: "no offset",
 			fields: fields{
 				output: &Output{
-					cfg:   mockCfg,
-					cache: mockCache(false),
+					cfg:  mockCfg,
+					meta: mockCache(false),
 				}},
 			args: args{
 				timestamp: mockTimestamp,
 				record: map[interface{}]interface{}{
+					"id":       []byte("b2a9cb046a8275c57307cad907ef0a5553a78d6f4c1da7186566555d1a5383dd"),
 					"log":      []byte("time=\"2021-10-12 16:00:14.130242184\" level=info msg=\"finish to run the task: executor K8S/MARATHONFORTERMINUSDEV (id: 1120384ca1, action: 5)\"\n"),
 					"stream":   []byte("stderr"),
 					"log_path": []byte("/testdata/containers/b2a9cb046a8275c57307cad907ef0a5553a78d6f4c1da7186566555d1a5383dd/b2a9cb046a8275c57307cad907ef0a5553a78d6f4c1da7186566555d1a5383dd-json.log"),
@@ -202,13 +203,16 @@ var (
 	mockTimestamp = time.Date(2021, 10, 12, 8, 0, 15, 0, time.UTC)
 	mockCfg       = Config{
 		ContainerEnvInclude:    strings.Split("TERMINUS_DEFINE_TAG,TERMINUS_KEY,MESOS_TASK_ID,DICE_ORG_ID,DICE_ORG_NAME,DICE_PROJECT_ID,DICE_PROJECT_NAME,DICE_APPLICATION_ID,DICE_APPLICATION_NAME,DICE_RUNTIME_ID,DICE_RUNTIME_NAME,DICE_SERVICE_NAME,DICE_WORKSPACE,DICE_COMPONENT,TERMINUS_LOG_KEY,MONITOR_LOG_KEY,DICE_CLUSTER_NAME,MSP_ENV_ID,MSP_LOG_ATTACH,POD_IP", ","),
-		DockerContainerIDIndex: -2,
 	}
 )
 
-func mockCache(isJob bool) *metadataCache {
-	res := &metadataCache{
-		dockerConfig: &containerfile.ContainerInfoCenter{
+func mockCache(isJob bool) *metadata {
+	res := &metadata{
+		cfg: metadataConfig{
+			dockerMetadataEnable: true,
+			dcfg:                 containerfile.Config{},
+		},
+		dockerConfigMeta: &containerfile.ContainerInfoCenter{
 			Data: map[containerfile.DockerContainerID]containerfile.DockerContainerInfo{
 				"b2a9cb046a8275c57307cad907ef0a5553a78d6f4c1da7186566555d1a5383dd": {
 					ID:   "b2a9cb046a8275c57307cad907ef0a5553a78d6f4c1da7186566555d1a5383dd",
@@ -231,13 +235,14 @@ func mockCache(isJob bool) *metadataCache {
 		},
 	}
 	if isJob {
-		res.dockerConfig.Data["b2a9cb046a8275c57307cad907ef0a5553a78d6f4c1da7186566555d1a5383dd"].EnvMap["TERMINUS_DEFINE_TAG"] = "pipeline-task-1024"
+		res.dockerConfigMeta.Data["b2a9cb046a8275c57307cad907ef0a5553a78d6f4c1da7186566555d1a5383dd"].EnvMap["TERMINUS_DEFINE_TAG"] = "pipeline-task-1024"
 	}
 	return res
 }
 
 func mockRecord() map[interface{}]interface{} {
 	return map[interface{}]interface{}{
+		"id":       []byte("b2a9cb046a8275c57307cad907ef0a5553a78d6f4c1da7186566555d1a5383dd"),
 		"log":      []byte("time=\"2021-10-12 16:00:14.130242184\" level=info msg=\"finish to run the task: executor K8S/MARATHONFORTERMINUSDEV (id: 1120384ca1, action: 5)\"\n"),
 		"stream":   []byte("stderr"),
 		"log_path": []byte("/testdata/containers/b2a9cb046a8275c57307cad907ef0a5553a78d6f4c1da7186566555d1a5383dd/b2a9cb046a8275c57307cad907ef0a5553a78d6f4c1da7186566555d1a5383dd-json.log"),
@@ -294,44 +299,6 @@ func Test_stripNewLine(t *testing.T) {
 			if got := stripNewLine(tt.args.data); !reflect.DeepEqual(got, tt.want) {
 				t.Errorf("stripNewLine() = %v, want %v", got, tt.want)
 			}
-		})
-	}
-}
-
-func TestOutput_enrichWithErdaMetadata(t *testing.T) {
-	type args struct {
-		lg     *LogEvent
-		record map[interface{}]interface{}
-	}
-	tests := []struct {
-		name string
-		args args
-		want *LogEvent
-	}{
-		{
-			name: "",
-			args: args{
-				lg: &LogEvent{
-					Tags: map[string]string{},
-				},
-				record: map[interface{}]interface{}{
-					"meta_erda_level":      []byte( "INFO"),
-					"meta_erda_request_id": []byte( "abc"),
-				},
-			},
-			want: &LogEvent{
-				Tags: map[string]string{
-					"level":      "INFO",
-					"request_id": "abc",
-				},
-			},
-		},
-	}
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			o := &Output{}
-			o.enrichWithErdaMetadata(tt.args.lg, tt.args.record)
-			assert.Equal(t, tt.want, tt.args.lg)
 		})
 	}
 }

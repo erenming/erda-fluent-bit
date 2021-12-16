@@ -1,11 +1,13 @@
 package main
 
 import (
+	"fmt"
 	"time"
 	"unsafe"
 
 	"C"
 	outerda "github.com/erda-project/erda-for-fluent-bit/out_erda"
+	"github.com/google/uuid"
 	"github.com/sirupsen/logrus"
 
 	"github.com/fluent/fluent-bit-go/output"
@@ -17,7 +19,7 @@ func init() {
 	})
 }
 
-var outErdaInstance *outerda.Output
+var instanceMap = map[string]*outerda.Output{}
 
 const (
 	defaultEventLimit             = 5000
@@ -39,10 +41,9 @@ func defaultConfig() outerda.Config {
 		DockerContainerRootPath:        "/var/lib/docker/containers",
 		DockerConfigSyncInterval:       10 * time.Minute,
 		DockerConfigMaxExpiredDuration: time.Hour,
-		// usual format: /var/lib/docker/containers/<id>/<id>-json.log
-		DockerContainerIDIndex:      -2,
-		BatchEventLimit:             defaultEventLimit,
-		BatchEventContentLimitBytes: defaultEventContentBytesLimit,
+		DockerContainerMetadataEnable:  true,
+		BatchEventLimit:                defaultEventLimit,
+		BatchEventContentLimitBytes:    defaultEventContentBytesLimit,
 	}
 }
 
@@ -54,31 +55,53 @@ func FLBPluginRegister(def unsafe.Pointer) int {
 //export FLBPluginInit
 // (fluentbit will call this)
 // plugin (context) pointer to fluentbit context (state/ c code)
-func FLBPluginInit(plugin unsafe.Pointer) int {
+func FLBPluginInit(ctx unsafe.Pointer) int {
 	cfg := defaultConfig()
 	err := outerda.LoadFromFLBPlugin(&cfg, func(key string) string {
-		return output.FLBPluginConfigKey(plugin, key)
+		return output.FLBPluginConfigKey(ctx, key)
 	})
 	if err != nil {
 		outerda.LogError("load error: %s", err)
 		return output.FLB_ERROR
 	}
 
-	outErdaInstance = outerda.NewOutput(cfg)
-	if err := outErdaInstance.Start(); err != nil {
+	obj := outerda.NewOutput(cfg)
+	if err := obj.Start(); err != nil {
 		outerda.LogError("start failed", err)
 		return output.FLB_ERROR
 	}
 
+	pluginID := uuid.New().String()
+	instanceMap[pluginID] = obj
+	output.FLBPluginSetContext(ctx, pluginID)
+
 	return output.FLB_OK
 }
 
-//export FLBPluginFlush
-func FLBPluginFlush(data unsafe.Pointer, length C.int, tag *C.char) int {
+func getPluginInstance(ctx unsafe.Pointer) (*outerda.Output, error) {
+	pluginID, ok := output.FLBPluginGetContext(ctx).(string)
+	if !ok {
+		return nil, fmt.Errorf("invalid pluginID %+v from ctx", output.FLBPluginGetContext(ctx))
+	}
+	outErdaInstance, ok := instanceMap[pluginID]
+	if !ok {
+		return nil, fmt.Errorf("can't find instance with pluginID<%s>", pluginID)
+	}
+	return outErdaInstance, nil
+}
+
+//export FLBPluginFlushCtx
+func FLBPluginFlushCtx(ctx, data unsafe.Pointer, length C.int, tag *C.char) int {
 	// var count int
 	var ret int
 	var ts interface{}
 	var record map[interface{}]interface{}
+
+	outErdaInstance, err := getPluginInstance(ctx)
+	if err != nil {
+		logrus.Errorf("getPluginInstance: %s", err)
+		return output.FLB_ERROR
+	}
 
 	// Create Fluent Bit decoder
 	dec := output.NewDecoder(data, int(length))
@@ -118,7 +141,7 @@ func FLBPluginFlush(data unsafe.Pointer, length C.int, tag *C.char) int {
 
 		// count++
 	}
-	err := outErdaInstance.Flush()
+	err = outErdaInstance.Flush()
 	if err != nil {
 		outerda.LogError("Flush error", err)
 		outErdaInstance.Reset()
@@ -135,11 +158,10 @@ func FLBPluginFlush(data unsafe.Pointer, length C.int, tag *C.char) int {
 
 //export FLBPluginExit
 func FLBPluginExit() int {
-	if outErdaInstance == nil {
-		return output.FLB_OK
-	}
-	if err := outErdaInstance.Close(); err != nil {
-		outerda.LogError("close output failed", err)
+	for pid, instance := range instanceMap {
+		if err := instance.Close(); err != nil {
+			logrus.Errorf("close output pluginID<%s> failed, err: %s", pid, err)
+		}
 	}
 	return output.FLB_OK
 }
