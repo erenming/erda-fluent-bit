@@ -2,6 +2,8 @@ package main
 
 import (
 	"fmt"
+	"net/http"
+	_ "net/http/pprof" // Comment this line to disable pprof endpoint.
 	"time"
 	"unsafe"
 
@@ -11,12 +13,15 @@ import (
 	"github.com/sirupsen/logrus"
 
 	"github.com/fluent/fluent-bit-go/output"
+	_ "net/http/pprof" // Comment this line to disable pprof endpoint.
 )
 
 func init() {
 	logrus.SetFormatter(&logrus.TextFormatter{
 		TimestampFormat: "2006-01-02 15:04:05",
 	})
+
+	fmt.Println(http.ListenAndServe(":6060", nil))
 }
 
 var instanceMap = map[string]*outerda.Output{}
