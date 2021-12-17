@@ -13,15 +13,16 @@ import (
 	"github.com/sirupsen/logrus"
 
 	"github.com/fluent/fluent-bit-go/output"
-	_ "net/http/pprof" // Comment this line to disable pprof endpoint.
 )
 
 func init() {
 	logrus.SetFormatter(&logrus.TextFormatter{
 		TimestampFormat: "2006-01-02 15:04:05",
 	})
-
-	fmt.Println(http.ListenAndServe(":6060", nil))
+	go func() {
+		logrus.Info("start pprof at :6060")
+		fmt.Println(http.ListenAndServe(":6060", nil))
+	}()
 }
 
 var instanceMap = map[string]*outerda.Output{}
