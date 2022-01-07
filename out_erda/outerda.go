@@ -280,10 +280,6 @@ func (o *Output) businessLogic(lg *LogEvent) {
 	lg.logAnalysisURL = lg.Tags["monitor_log_collector"]
 	delete(lg.Tags, "monitor_log_collector")
 
-	if v, ok := lg.Tags["request_id"]; ok {
-		lg.Tags["request-id"] = v
-	}
-
 	internalPrefix := "dice_"
 	for k, v := range lg.Tags {
 		if idx := strings.Index(k, internalPrefix); idx != -1 {
@@ -293,6 +289,9 @@ func (o *Output) businessLogic(lg *LogEvent) {
 }
 
 func (o *Output) Close() error {
+	if err := o.Flush(); err != nil {
+		return fmt.Errorf("flush failed When close: %w", err)
+	}
 	if o.cancelFunc != nil {
 		o.cancelFunc()
 	}
