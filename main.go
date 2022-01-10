@@ -21,12 +21,6 @@ func init() {
 
 var instanceMap = map[string]*outerda.Output{}
 
-const (
-	defaultEventLimit             = 5000
-	defaultNetLimitBytesPerSecond = 1 * 1024 * 1024 // 1MB/s
-	defaultEventContentBytesLimit = 3 * 1024 * 1024 // 3MB * 25% = 0.75MB < 1MB/s
-)
-
 func defaultConfig() outerda.Config {
 	return outerda.Config{
 		RemoteConfig: outerda.RemoteConfig{
@@ -35,15 +29,12 @@ func defaultConfig() outerda.Config {
 			ContainerPath:          "/collect/logs/container",
 			RequestTimeout:         time.Second * 10,
 			KeepAliveIdleTimeout:   time.Second * 60,
-			NetLimitBytesPerSecond: defaultNetLimitBytesPerSecond,
 		},
 		CompressLevel:                  3,
 		DockerContainerRootPath:        "/var/lib/docker/containers",
 		DockerConfigSyncInterval:       10 * time.Minute,
 		DockerConfigMaxExpiredDuration: time.Hour,
 		DockerContainerMetadataEnable:  true,
-		BatchEventLimit:                defaultEventLimit,
-		BatchEventContentLimitBytes:    defaultEventContentBytesLimit,
 	}
 }
 
@@ -123,16 +114,6 @@ func FLBPluginFlushCtx(ctx, data unsafe.Pointer, length C.int, tag *C.char) int 
 		default:
 			timestamp = time.Now()
 		}
-
-		// data, err := outerda.MarshalRecord(record)
-		// if err != nil {
-		// 	logrus.Error(err)
-		// 	return output.FLB_RETRY
-		// }
-		// if _, ok := record["time"]; !ok {
-		// 	fmt.Printf("[%d] %s [%s], \n", count, C.GoString(tag), timestamp.String())
-		// 	fmt.Printf("\tdata: %s\n", string(data))
-		// }
 
 		if val := outErdaInstance.AddEvent(&outerda.Event{Record: record, Timestamp: timestamp}); val != output.FLB_OK {
 			outErdaInstance.Reset()

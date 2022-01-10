@@ -25,11 +25,6 @@ type Config struct {
 	DockerContainerRootPath        string        `fluentbit:"docker_container_root_path"`
 	DockerConfigSyncInterval       time.Duration `fluentbit:"docker_config_sync_interval"`
 	DockerConfigMaxExpiredDuration time.Duration `fluentbit:"docker_config_max_expired_duration"`
-
-	// 日志事件的最大个数限制
-	BatchEventLimit int `fluentbit:"batch_event_limit"`
-	// 日志内容大小总和阈值
-	BatchEventContentLimitBytes int `fluentbit:"batch_event_content_limit_bytes"`
 }
 
 type RemoteConfig struct {
@@ -42,9 +37,6 @@ type RemoteConfig struct {
 	KeepAliveIdleTimeout time.Duration     `fluentbit:"keep_alive_idle_timeout"`
 	BasicAuthUsername    string            `fluentbit:"basic_auth_username"`
 	BasicAuthPassword    string            `fluentbit:"basic_auth_password"`
-
-	// 流量限制
-	NetLimitBytesPerSecond int `fluentbit:"net_limit_bytes_per_second"`
 }
 
 func (cfg *Config) Init() {
@@ -59,10 +51,6 @@ func (cfg *Config) Init() {
 	cfg.RemoteConfig.Headers["Content-Type"] = "application/json; charset=UTF-8"
 	if cfg.CompressLevel > 0 {
 		cfg.RemoteConfig.Headers["Content-Encoding"] = "gzip"
-	}
-
-	if float64(cfg.BatchEventContentLimitBytes)*compressRatio > float64(cfg.RemoteConfig.NetLimitBytesPerSecond) {
-		cfg.BatchEventContentLimitBytes = int(float64(cfg.RemoteConfig.NetLimitBytesPerSecond)/compressRatio) / 2
 	}
 
 	if v := os.Getenv("LOG_LEVEL"); v != "" {

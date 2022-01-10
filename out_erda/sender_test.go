@@ -4,84 +4,10 @@ import (
 	"bytes"
 	"compress/gzip"
 	"io"
-	"math"
 	"testing"
-	"time"
 
-	"github.com/sirupsen/logrus"
 	"github.com/stretchr/testify/assert"
 )
-
-func TestBatchSender_SendLogEvent(t *testing.T) {
-	logrus.SetLevel(logrus.InfoLevel)
-
-	type fields struct {
-		dataNum                     int
-		batchEventSize              int
-		waitDuration                time.Duration
-		BatchEventLimit             int
-		BatchEventContentLimitBytes int
-	}
-	type args struct {
-		lg *LogEvent
-	}
-	tests := []struct {
-		name   string
-		fields fields
-		args   args
-		want   int
-	}{
-		{
-			name: "event limit trigger mode",
-			fields: fields{
-				dataNum:                     1000,
-				batchEventSize:              10,
-				waitDuration:                time.Second * 2,
-				BatchEventLimit:             10,
-				BatchEventContentLimitBytes: math.MaxInt64,
-			},
-			args: args{
-				lg: mockLogEvent,
-			},
-			want: 100,
-		},
-		{
-			name: "content limit trigger mode",
-			fields: fields{
-				dataNum:                     1000,
-				batchEventSize:              10,
-				waitDuration:                time.Second * 2,
-				BatchEventLimit:             1001,
-				BatchEventContentLimitBytes: mockLogEvent.Size() * 10,
-			},
-			args: args{
-				lg: mockLogEvent,
-			},
-			want: 100,
-		},
-	}
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			mm := &mockRemote{}
-			bs := NewBatchSender(batchConfig{
-				remoteServer:                mm,
-				BatchEventLimit:             tt.fields.BatchEventLimit,
-				BatchEventContentLimitBytes: tt.fields.BatchEventContentLimitBytes,
-				GzipLevel:                   3,
-			})
-			for i := 0; i < tt.fields.dataNum; i++ {
-				err := bs.SendLogEvent(tt.args.lg)
-				if err != nil {
-					t.Errorf("get error: %s", err)
-				}
-			}
-			assert.Nil(t, bs.FlushAll())
-			assert.Equal(t, tt.want, mm.sendCount)
-			assert.Equal(t, 0, bs.currentIndex)
-			assert.Equal(t, 0, bs.currentContentSizeBytes)
-		})
-	}
-}
 
 var mockLogEvent = &LogEvent{
 	Source:    "container",
@@ -134,8 +60,8 @@ func TestBatchSender_flush(t *testing.T) {
 		remoteServer: mr,
 	}
 	bs := &BatchSender{
-		batchLogEvent: make([]*LogEvent, cfg.BatchEventLimit),
-		cfg:           cfg,
+		buffer: make([]*LogEvent, 0, 10),
+		cfg:    cfg,
 	}
 	if cfg.GzipLevel > 0 {
 		buf := bytes.NewBuffer(nil)

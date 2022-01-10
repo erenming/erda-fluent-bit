@@ -37,10 +37,8 @@ func (l *LogEvent) Size() int {
 }
 
 type batchConfig struct {
-	remoteServer                remoteServiceInf
-	BatchEventLimit             int
-	BatchEventContentLimitBytes int
-	GzipLevel                   int
+	remoteServer remoteServiceInf
+	GzipLevel    int
 }
 
 type gzipper struct {
@@ -50,8 +48,8 @@ type gzipper struct {
 
 func NewBatchSender(cfg batchConfig) *BatchSender {
 	bs := &BatchSender{
-		batchLogEvent: make([]*LogEvent, cfg.BatchEventLimit),
-		cfg:           cfg,
+		buffer: make([]*LogEvent, 0, 100),
+		cfg:    cfg,
 	}
 	if cfg.GzipLevel > 0 {
 		buf := bytes.NewBuffer(nil)
@@ -66,34 +64,18 @@ func NewBatchSender(cfg batchConfig) *BatchSender {
 }
 
 type BatchSender struct {
-	compressor    *gzipper
-	batchLogEvent []*LogEvent
-	cfg           batchConfig
-
-	currentIndex            int
-	currentContentSizeBytes int
+	compressor *gzipper
+	buffer     []*LogEvent
+	cfg        batchConfig
 }
 
-func (bs *BatchSender) SendLogEvent(lg *LogEvent) error {
-	exceedEventLimit := bs.currentIndex >= bs.cfg.BatchEventLimit
-	exceedContent := (bs.currentContentSizeBytes + len(lg.Content)) > bs.cfg.BatchEventContentLimitBytes
-
-	if exceedEventLimit || exceedContent {
-		err := bs.flush(bs.batchLogEvent[:bs.currentIndex])
-		if err != nil {
-			return err
-		}
-		bs.Reset()
-	}
-
-	bs.batchLogEvent[bs.currentIndex] = lg
-	bs.currentContentSizeBytes += lg.Size()
-	bs.currentIndex++
+func (bs *BatchSender) AddLogEvent(lg *LogEvent) error {
+	bs.buffer = append(bs.buffer, lg)
 	return nil
 }
 
 func (bs *BatchSender) FlushAll() error {
-	err := bs.flush(bs.batchLogEvent[:bs.currentIndex])
+	err := bs.flush(bs.buffer)
 	if err != nil {
 		return err
 	}
@@ -102,8 +84,8 @@ func (bs *BatchSender) FlushAll() error {
 }
 
 func (bs *BatchSender) Reset() {
-	bs.currentIndex = 0
-	bs.currentContentSizeBytes = 0
+	// reuse buffer
+	bs.buffer = bs.buffer[:0]
 }
 
 func (bs *BatchSender) flush(data []*LogEvent) error {

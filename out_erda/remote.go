@@ -10,7 +10,6 @@ import (
 	"time"
 
 	"github.com/sirupsen/logrus"
-	"golang.org/x/time/rate"
 )
 
 type collectorType string
@@ -36,16 +35,12 @@ type collectorConfig struct {
 	BasicAuthUsername    string
 	BasicAuthPassword    string
 
-	// 流量限制
-	NetLimitBytesPerSecond int
-
 	collectorType collectorType
 }
 
 type collectorService struct {
-	cfg     collectorConfig
-	client  *http.Client
-	limiter *rate.Limiter
+	cfg    collectorConfig
+	client *http.Client
 }
 
 func newCollectorService(cfg collectorConfig) *collectorService {
@@ -65,9 +60,8 @@ func newCollectorService(cfg collectorConfig) *collectorService {
 		Timeout: cfg.RequestTimeout,
 	}
 	cs := &collectorService{
-		cfg:     cfg,
-		client:  client,
-		limiter: rate.NewLimiter(rate.Limit(cfg.NetLimitBytesPerSecond), cfg.NetLimitBytesPerSecond),
+		cfg:    cfg,
+		client: client,
 	}
 
 	cs.BasicAuth()
@@ -93,30 +87,11 @@ func (c *collectorService) BasicAuth() {
 	}
 }
 
-// func (c *collectorService) SendLogWithURLString(data []byte, urlStr string) error {
-// 	u, err := url.Parse(urlStr)
-// 	if err != nil {
-// 		return fmt.Errorf("invalide url: %s, err: %w", urlStr, err)
-// 	}
-// 	return c.sendLogWithURL(data, u.String())
-// }
-
 func (c *collectorService) SendLog(data []byte) error {
 	return c.sendLogWithURL(data, c.cfg.URL)
 }
 
 func (c *collectorService) sendLogWithURL(data []byte, u string) error {
-	// block until ok
-	if c.limiter != nil {
-		r := c.limiter.ReserveN(time.Now(), len(data))
-		if !r.OK() {
-			newBurst := c.limiter.Burst() << 1
-			c.limiter.SetBurst(newBurst)
-			return fmt.Errorf("double of burst to %d", newBurst)
-		}
-		time.Sleep(r.Delay())
-	}
-
 	req, err := http.NewRequest(http.MethodPost, u, bytes.NewReader(data))
 	if err != nil {
 		return fmt.Errorf("new request failed: %w", err)

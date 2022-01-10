@@ -51,11 +51,9 @@ func TestConfig_Init(t *testing.T) {
 			fields: fields{
 				cfg: Config{
 					RemoteConfig: RemoteConfig{
-						NetLimitBytesPerSecond: 100,
 						Headers:                map[string]string{},
 					},
 					CompressLevel:               3,
-					BatchEventContentLimitBytes: 800,
 				},
 			},
 			want: Config{
@@ -65,10 +63,8 @@ func TestConfig_Init(t *testing.T) {
 						"Content-Type":     "application/json; charset=UTF-8",
 						"Content-Encoding": "gzip",
 					},
-					NetLimitBytesPerSecond: 100,
 				},
 				CompressLevel:               3,
-				BatchEventContentLimitBytes: 200,
 			},
 		},
 	}

@@ -44,34 +44,31 @@ func NewOutput(cfg Config) *Output {
 	logrus.Infof("cfg: %+v", cfg)
 
 	containerCollector := newCollectorService(collectorConfig{
-		Headers:                cfg.RemoteConfig.Headers,
-		URL:                    hostJoinPath(cfg.RemoteConfig.URL, cfg.RemoteConfig.ContainerPath),
-		RequestTimeout:         cfg.RemoteConfig.RequestTimeout,
-		KeepAliveIdleTimeout:   cfg.RemoteConfig.KeepAliveIdleTimeout,
-		NetLimitBytesPerSecond: cfg.RemoteConfig.NetLimitBytesPerSecond,
-		BasicAuthUsername:      cfg.RemoteConfig.BasicAuthUsername,
-		BasicAuthPassword:      cfg.RemoteConfig.BasicAuthPassword,
-		collectorType:          centralCollector,
+		Headers:              cfg.RemoteConfig.Headers,
+		URL:                  hostJoinPath(cfg.RemoteConfig.URL, cfg.RemoteConfig.ContainerPath),
+		RequestTimeout:       cfg.RemoteConfig.RequestTimeout,
+		KeepAliveIdleTimeout: cfg.RemoteConfig.KeepAliveIdleTimeout,
+		BasicAuthUsername:    cfg.RemoteConfig.BasicAuthUsername,
+		BasicAuthPassword:    cfg.RemoteConfig.BasicAuthPassword,
+		collectorType:        centralCollector,
 	})
 
 	jobCollector := newCollectorService(collectorConfig{
-		Headers:                cfg.RemoteConfig.Headers,
-		URL:                    hostJoinPath(cfg.RemoteConfig.URL, cfg.RemoteConfig.JobPath),
-		RequestTimeout:         cfg.RemoteConfig.RequestTimeout,
-		KeepAliveIdleTimeout:   cfg.RemoteConfig.KeepAliveIdleTimeout,
-		NetLimitBytesPerSecond: cfg.RemoteConfig.NetLimitBytesPerSecond,
-		BasicAuthUsername:      cfg.RemoteConfig.BasicAuthUsername,
-		BasicAuthPassword:      cfg.RemoteConfig.BasicAuthPassword,
-		collectorType:          centralCollector,
+		Headers:              cfg.RemoteConfig.Headers,
+		URL:                  hostJoinPath(cfg.RemoteConfig.URL, cfg.RemoteConfig.JobPath),
+		RequestTimeout:       cfg.RemoteConfig.RequestTimeout,
+		KeepAliveIdleTimeout: cfg.RemoteConfig.KeepAliveIdleTimeout,
+		BasicAuthUsername:    cfg.RemoteConfig.BasicAuthUsername,
+		BasicAuthPassword:    cfg.RemoteConfig.BasicAuthPassword,
+		collectorType:        centralCollector,
 	})
 
 	logAnalysisCollector := newCollectorService(collectorConfig{
-		Headers:                cfg.RemoteConfig.Headers,
-		URL:                    cfg.RemoteConfig.URL,
-		RequestTimeout:         cfg.RemoteConfig.RequestTimeout,
-		KeepAliveIdleTimeout:   cfg.RemoteConfig.KeepAliveIdleTimeout,
-		NetLimitBytesPerSecond: cfg.RemoteConfig.NetLimitBytesPerSecond,
-		collectorType:          logAnalysis,
+		Headers:              cfg.RemoteConfig.Headers,
+		URL:                  cfg.RemoteConfig.URL,
+		RequestTimeout:       cfg.RemoteConfig.RequestTimeout,
+		KeepAliveIdleTimeout: cfg.RemoteConfig.KeepAliveIdleTimeout,
+		collectorType:        logAnalysis,
 	})
 
 	return &Output{
@@ -86,22 +83,16 @@ func NewOutput(cfg Config) *Output {
 			},
 		}),
 		batchContainer: NewBatchSender(batchConfig{
-			BatchEventLimit:             cfg.BatchEventLimit,
-			BatchEventContentLimitBytes: cfg.BatchEventContentLimitBytes,
-			remoteServer:                containerCollector,
-			GzipLevel:                   cfg.CompressLevel,
+			remoteServer: containerCollector,
+			GzipLevel:    cfg.CompressLevel,
 		}),
 		batchJob: NewBatchSender(batchConfig{
-			BatchEventLimit:             cfg.BatchEventLimit,
-			BatchEventContentLimitBytes: cfg.BatchEventContentLimitBytes,
-			remoteServer:                jobCollector,
-			GzipLevel:                   cfg.CompressLevel,
+			remoteServer: jobCollector,
+			GzipLevel:    cfg.CompressLevel,
 		}),
 		batchLogAnalysis: NewBatchSender(batchConfig{
-			BatchEventLimit:             cfg.BatchEventLimit,
-			BatchEventContentLimitBytes: cfg.BatchEventContentLimitBytes,
-			remoteServer:                logAnalysisCollector,
-			GzipLevel:                   cfg.CompressLevel,
+			remoteServer: logAnalysisCollector,
+			GzipLevel:    cfg.CompressLevel,
 		}),
 	}
 }
@@ -113,8 +104,7 @@ func (o *Output) Start() error {
 // AddEvent accepts a Record, process and send to the buffer, flushing the buffer if it is full
 // the return value is one of: FLB_OK, FLB_RETRY
 // 1. process event as LogEvent
-// 2. add []byte(encoded LogEvent) to buffer if buffer is not full
-// 3. flush when buffer is full, and if flush failed, print error and retry event
+// 2. add []byte(encoded LogEvent) to buffer
 func (o *Output) AddEvent(event *Event) int {
 	lg, err := o.Process(event.Timestamp, event.Record)
 	if err != nil {
@@ -124,7 +114,7 @@ func (o *Output) AddEvent(event *Event) int {
 
 	if o.cfg.RemoteConfig.RemoteType == remoteLogAnalysis {
 		if o.all2LogAnalysis() || o.logAnalysisEmbed(lg) {
-			err := o.batchLogAnalysis.SendLogEvent(lg)
+			err := o.batchLogAnalysis.AddLogEvent(lg)
 			if err != nil {
 				LogError("batchLogAnalysis send failed", err)
 				return output.FLB_RETRY
@@ -133,13 +123,13 @@ func (o *Output) AddEvent(event *Event) int {
 	} else {
 		switch lg.Source {
 		case "job":
-			err = o.batchJob.SendLogEvent(lg)
+			err = o.batchJob.AddLogEvent(lg)
 			if err != nil {
 				LogError("batchJob send failed", err)
 				return output.FLB_RETRY
 			}
 		default:
-			err = o.batchContainer.SendLogEvent(lg)
+			err = o.batchContainer.AddLogEvent(lg)
 			if err != nil {
 				LogError("batchContainer send failed", err)
 				return output.FLB_RETRY
