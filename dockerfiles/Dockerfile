@@ -14,8 +14,9 @@ ENV FLB_MAJOR 1
 ENV FLB_MINOR 8
 ENV FLB_PATCH 6
 ENV FLB_VERSION 1.8.6
+#ARG FLB_TARBALL=https://github.com/fluent/fluent-bit/archive/v$FLB_VERSION.tar.gz
+ARG FLB_TARBALL=https://erda-release.oss-cn-hangzhou.aliyuncs.com/tools/fluent-bit/fluent-bit-$FLB_VERSION.tar.gz
 
-ARG FLB_TARBALL=https://github.com/fluent/fluent-bit/archive/v$FLB_VERSION.tar.gz
 ENV FLB_SOURCE $FLB_TARBALL
 RUN mkdir -p /fluent-bit/bin /fluent-bit/etc /fluent-bit/log /tmp/fluent-bit-master/
 
