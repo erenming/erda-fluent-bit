@@ -11,9 +11,9 @@ FROM registry.erda.cloud/retag/debian:buster-slim as builder
 
 # Fluent Bit version
 ENV FLB_MAJOR 1
-ENV FLB_MINOR 8
-ENV FLB_PATCH 11
-ENV FLB_VERSION 1.8.11
+ENV FLB_MINOR 7
+ENV FLB_PATCH 9
+ENV FLB_VERSION 1.7.9
 
 ARG FLB_TARBALL=https://github.com/fluent/fluent-bit/archive/v$FLB_VERSION.tar.gz
 ENV FLB_SOURCE $FLB_TARBALL
