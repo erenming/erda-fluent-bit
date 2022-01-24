@@ -102,14 +102,10 @@ func (c *collectorService) sendLogWithURL(data []byte, u string) error {
 	if err != nil {
 		return fmt.Errorf("do request failed: %w", err)
 	}
-	_, err = io.Copy(io.Discard, resp.Body)
-	if err != nil {
-		return fmt.Errorf("copy resp.Body: %w", err)
-	}
 	defer func() {
 		err := resp.Body.Close()
-		if err != nil {
-			logrus.Infof("close body failed: %s", err)
+		if err != nil && err != io.EOF {
+			logrus.Infof("close resp.Body failed: %s", err)
 		}
 	}()
 
