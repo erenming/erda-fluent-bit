@@ -12,8 +12,8 @@ FROM registry.erda.cloud/retag/debian:buster-slim as builder
 # Fluent Bit version
 ENV FLB_MAJOR 1
 ENV FLB_MINOR 8
-ENV FLB_PATCH 6
-ENV FLB_VERSION 1.8.6
+ENV FLB_PATCH 11
+ENV FLB_VERSION 1.8.11
 
 #ARG FLB_TARBALL=https://github.com/fluent/fluent-bit/archive/v$FLB_VERSION.tar.gz
 ARG FLB_TARBALL=https://erda-release.oss-cn-hangzhou.aliyuncs.com/tools/fluent-bit/fluent-bit-$FLB_VERSION.tar.gz
@@ -21,6 +21,13 @@ ENV FLB_SOURCE $FLB_TARBALL
 RUN mkdir -p /fluent-bit/bin /fluent-bit/etc /fluent-bit/log /tmp/fluent-bit-master/
 
 ENV DEBIAN_FRONTEND noninteractive
+
+# use tsinghua mirror
+RUN mv /etc/apt/sources.list /tmp/
+RUN echo "deb http://mirrors.tuna.tsinghua.edu.cn/debian/ buster main contrib non-free" > /etc/apt/sources.list
+RUN echo "deb http://mirrors.tuna.tsinghua.edu.cn/debian/ buster-updates main contrib non-free" >> /etc/apt/sources.list
+RUN echo "deb http://mirrors.tuna.tsinghua.edu.cn/debian/ buster-backports main contrib non-free" >> /etc/apt/sources.list
+RUN echo "deb http://mirrors.tuna.tsinghua.edu.cn/debian-security buster/updates main contrib non-free" >> /etc/apt/sources.list
 
 RUN apt-get update && \
     apt-get install -y --no-install-recommends \
@@ -85,6 +92,14 @@ FROM registry.erda.cloud/retag/debian:buster-slim
 MAINTAINER Eduardo Silva <eduardo@treasure-data.com>
 LABEL Description="Fluent Bit docker image for testing branch master" Vendor="Fluent Organization" Version="1.1"
 RUN true
+
+# use tsinghua mirror
+RUN mv /etc/apt/sources.list /tmp/
+RUN echo "deb http://mirrors.tuna.tsinghua.edu.cn/debian/ buster main contrib non-free" > /etc/apt/sources.list
+RUN echo "deb http://mirrors.tuna.tsinghua.edu.cn/debian/ buster-updates main contrib non-free" >> /etc/apt/sources.list
+RUN echo "deb http://mirrors.tuna.tsinghua.edu.cn/debian/ buster-backports main contrib non-free" >> /etc/apt/sources.list
+RUN echo "deb http://mirrors.tuna.tsinghua.edu.cn/debian-security buster/updates main contrib non-free" >> /etc/apt/sources.list
+
 RUN apt-get update && \
     apt-get install -y --no-install-recommends \
     bash gdb valgrind build-essential vim curl sqlite3
