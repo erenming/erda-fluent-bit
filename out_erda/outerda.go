@@ -272,6 +272,14 @@ func (o *Output) enrichWithMetadata(lg *LogEvent, record map[interface{}]interfa
 // }
 
 func (o *Output) businessLogic(lg *LogEvent) {
+	// compatibility for log exporter
+	for _, k := range []string{"monitor_log_output", "monitor_log_output_config"} {
+		if v, ok := lg.Tags[k]; ok {
+			lg.Labels[k] = v
+		}
+	}
+
+	// container is a job, when it's env include "TERMINUS_DEFINE_TAG"
 	if val, ok := lg.Tags["terminus_define_tag"]; ok {
 		lg.ID = val
 		lg.Source = "job"
@@ -290,6 +298,7 @@ func (o *Output) businessLogic(lg *LogEvent) {
 			lg.Tags[k[len(internalPrefix):]] = v
 		}
 	}
+
 }
 
 func (o *Output) Close() error {
