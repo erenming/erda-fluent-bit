@@ -23,7 +23,7 @@ type LogEvent struct {
 	Offset    uint64            `json:"offset"`
 	Timestamp int64             `json:"timestamp"`
 	Tags      map[string]string `json:"tags"`
-	// deprecated
+	// deprecated. compatibility for log exporter
 	Labels         map[string]string `json:"labels"`
 	logAnalysisURL string
 }
