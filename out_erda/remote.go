@@ -2,6 +2,7 @@ package outerda
 
 import (
 	"bytes"
+	"compress/gzip"
 	"fmt"
 	"io"
 	"net"
@@ -13,42 +14,19 @@ import (
 	"golang.org/x/time/rate"
 )
 
-type collectorType string
-
-const (
-	centralCollector collectorType = "central_collector"
-	logAnalysis      collectorType = "log_analysis"
-)
-
-type remoteServiceInf interface {
-	// SendLogWithURLString(data []byte, urlStr string) error
-	SendLog(data []byte) error
-	GetURL() string
-	SetURL(u string)
-	Type() collectorType
+type remoteService struct {
+	cfg        RemoteConfig
+	client     *http.Client
+	limiter    *rate.Limiter
+	compressor *gzipper
 }
 
-type collectorConfig struct {
-	Headers              map[string]string
-	URL                  string
-	RequestTimeout       time.Duration
-	KeepAliveIdleTimeout time.Duration
-	BasicAuthUsername    string
-	BasicAuthPassword    string
-
-	// 流量限制
-	NetLimitBytesPerSecond int
-
-	collectorType collectorType
+type gzipper struct {
+	buf    *bytes.Buffer
+	writer *gzip.Writer
 }
 
-type collectorService struct {
-	cfg     collectorConfig
-	client  *http.Client
-	limiter *rate.Limiter
-}
-
-func newCollectorService(cfg collectorConfig) *collectorService {
+func newCollectorService(cfg RemoteConfig) *remoteService {
 	client := &http.Client{
 		Transport: &http.Transport{
 			DialContext: (&net.Dialer{
@@ -64,60 +42,45 @@ func newCollectorService(cfg collectorConfig) *collectorService {
 		},
 		Timeout: cfg.RequestTimeout,
 	}
-	cs := &collectorService{
-		cfg:     cfg,
-		client:  client,
-		limiter: rate.NewLimiter(rate.Limit(cfg.NetLimitBytesPerSecond), cfg.NetLimitBytesPerSecond),
+	cs := &remoteService{
+		cfg:    cfg,
+		client: client,
+	}
+	if cfg.GzipLevel > 0 {
+		buf := bytes.NewBuffer(nil)
+		gc, _ := gzip.NewWriterLevel(buf, cfg.GzipLevel)
+		cs.compressor = &gzipper{
+			buf:    buf,
+			writer: gc,
+		}
 	}
 
 	cs.BasicAuth()
 	return cs
 }
 
-func (c *collectorService) GetURL() string {
+func (c *remoteService) GetURL() string {
 	return c.cfg.URL
 }
 
-func (c *collectorService) SetURL(u string) {
+func (c *remoteService) SetURL(u string) {
 	c.cfg.URL = u
 }
 
-func (c *collectorService) Type() collectorType {
-	return c.cfg.collectorType
-}
-
-func (c *collectorService) BasicAuth() {
+func (c *remoteService) BasicAuth() {
 	if c.cfg.BasicAuthPassword != "" && c.cfg.BasicAuthUsername != "" {
 		token := basicAuth(c.cfg.BasicAuthUsername, c.cfg.BasicAuthPassword)
 		c.cfg.Headers["Authorization"] = "Basic " + token
 	}
 }
 
-// func (c *collectorService) SendLogWithURLString(data []byte, urlStr string) error {
-// 	u, err := url.Parse(urlStr)
-// 	if err != nil {
-// 		return fmt.Errorf("invalide url: %s, err: %w", urlStr, err)
-// 	}
-// 	return c.sendLogWithURL(data, u.String())
-// }
-
-func (c *collectorService) SendLog(data []byte) error {
-	return c.sendLogWithURL(data, c.cfg.URL)
-}
-
-func (c *collectorService) sendLogWithURL(data []byte, u string) error {
-	// block until ok
-	if c.limiter != nil {
-		r := c.limiter.ReserveN(time.Now(), len(data))
-		if !r.OK() {
-			newBurst := c.limiter.Burst() << 1
-			c.limiter.SetBurst(newBurst)
-			return fmt.Errorf("double of burst to %d", newBurst)
-		}
-		time.Sleep(r.Delay())
+func (c *remoteService) SendLogWithURL(data interface{}, u string) error {
+	buf, err := c.serializer(data)
+	if err != nil {
+		return err
 	}
 
-	req, err := http.NewRequest(http.MethodPost, u, bytes.NewReader(data))
+	req, err := http.NewRequest(http.MethodPost, u, bytes.NewReader(buf))
 	if err != nil {
 		return fmt.Errorf("new request failed: %w", err)
 	}
@@ -144,10 +107,58 @@ func (c *collectorService) sendLogWithURL(data []byte, u string) error {
 	return nil
 }
 
-func (c *collectorService) setHeaders(req *http.Request) {
+func (c *remoteService) setHeaders(req *http.Request) {
 	for k, v := range c.cfg.Headers {
 		req.Header.Set(k, v)
 	}
+}
+
+func (c *remoteService) serializer(data interface{}) ([]byte, error) {
+	var buf []byte
+	switch c.cfg.Format {
+	case "", "json":
+		c.cfg.Headers["Content-Type"] = "application/json; charset=UTF-8"
+		tmp, err := json.Marshal(data)
+		if err != nil {
+			return nil, fmt.Errorf("json marshal: %w", err)
+		}
+		buf = tmp
+	default:
+		return nil, fmt.Errorf("unsported format: %s", c.cfg.Format)
+	}
+
+	if c.cfg.GzipLevel > 0 {
+		c.cfg.Headers["Content-Encoding"] = "gzip"
+		if c.compressor != nil {
+			tmp, err := c.compress(buf)
+			if err != nil {
+				return nil, fmt.Errorf("compress failed: %w", err)
+			}
+			buf = tmp
+		}
+	}
+	return buf, nil
+}
+
+func (c *remoteService) compress(data []byte) ([]byte, error) {
+	defer func() {
+		c.compressor.buf.Reset()
+		c.compressor.writer.Reset(c.compressor.buf)
+	}()
+	if _, err := c.compressor.writer.Write(data); err != nil {
+		return nil, fmt.Errorf("gizp write data: %w", err)
+	}
+	if err := c.compressor.writer.Flush(); err != nil {
+		return nil, fmt.Errorf("gzip flush data: %w", err)
+	}
+	if err := c.compressor.writer.Close(); err != nil {
+		return nil, fmt.Errorf("gzip close: %w", err)
+	}
+	buf := bytes.NewBuffer(nil) // todo init size?
+	if _, err := io.Copy(buf, c.compressor.buf); err != nil {
+		return nil, fmt.Errorf("gzip copy: %w", err)
+	}
+	return buf.Bytes(), nil
 }
 
 func hostJoinPath(host, path string) string {

@@ -1,3 +1,12 @@
+FROM registry.erda.cloud/retag/golang:1.16.6 as gobuilder
+
+COPY . /build
+WORKDIR /build
+
+ENV GOPROXY="https://goproxy.cn"
+
+RUN make build
+
 FROM registry.erda.cloud/retag/debian:buster-slim as builder
 
 # Fluent Bit version
@@ -139,4 +148,4 @@ COPY --from=builder /usr/local/bin/ /usr/local/bin/
 COPY --from=builder /bin/busybox /bin/
 
 # Entry point
-CMD ["./fluent-bit/bin/fluent-bit", "-c", "/fluent-bit/etc/ds/fluent-bit.conf"]
+CMD ["./fluent-bit/bin/fluent-bit", "-c", "/fluent-bit/etc/node/fluent-bit.conf"]

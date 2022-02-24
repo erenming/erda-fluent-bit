@@ -19,46 +19,47 @@ func getAndConvert(key string, record map[interface{}]interface{}, defaultVal in
 		if defaultVal == nil {
 			return nil, fmt.Errorf("key %s: %w", key, ErrKeyMustExist)
 		} else {
-			logrus.Infof("key %s not existed, use default %+v", key, defaultVal)
 			return defaultVal, nil
 		}
 	}
 
-	var data interface{}
 	switch val.(type) {
 	case float64:
-		data = uint64(int(val.(float64)))
+		return uint64(int(val.(float64))), nil
 	case uint64:
-		data = val.(uint64)
+		return val.(uint64), nil
 	case string:
-		data = val.(string)
+		return val.(string), nil
 	case []byte:
-		data = val.([]byte)
+		return bs2str(val.([]byte)), nil
+	case map[interface{}]interface{}:
+		_, ok := defaultVal.(map[string]string)
+		if ok {
+			data := val.(map[interface{}]interface{})
+			m := make(map[string]string, len(data))
+			for k, _ := range data {
+				tmp, _ := getAndConvert(k.(string), data, "")
+				m[k.(string)] = tmp.(string)
+			}
+			return m, nil
+		}
+		return val, nil
 	default:
 		return nil, fmt.Errorf("uncaughted type <%T> with key<%s>: %w", val, key, ErrTypeInvalid)
 	}
-	return data, nil
 }
 
 func getTime(record map[interface{}]interface{}) (time.Time, error) {
-	timeStr, err := getAndConvert("time", record, nil)
+	timeStr, err := getAndConvert("time", record, "")
 	if err != nil {
 		return time.Time{}, err
 	}
-	t, err := time.Parse(time.RFC3339Nano, bs2str(timeStr.([]byte)))
+	t, err := time.Parse(time.RFC3339Nano, timeStr.(string))
 	if err != nil {
 		return time.Time{}, fmt.Errorf("parse time: %w", err)
 	}
 
 	return t, nil
-}
-
-func getLogPath(record map[interface{}]interface{}) string {
-	path, ok := record["log_path"]
-	if !ok {
-		return ""
-	}
-	return bs2str(path.([]byte))
 }
 
 func LogError(message string, err error) {

@@ -2,7 +2,6 @@ package outerda
 
 import (
 	"io"
-	"math"
 	"net/http"
 	"net/http/httptest"
 	"testing"
@@ -22,10 +21,10 @@ func Test_collectorService_sendWithPath(t *testing.T) {
 	defer ts.Close()
 
 	type fields struct {
-		cfg collectorConfig
+		cfg RemoteConfig
 	}
 	type args struct {
-		data []byte
+		data interface{}
 		url  string
 	}
 	tests := []struct {
@@ -36,19 +35,18 @@ func Test_collectorService_sendWithPath(t *testing.T) {
 	}{
 		{
 			name: "",
-			fields: fields{cfg: collectorConfig{
+			fields: fields{cfg: RemoteConfig{
 				Headers: map[string]string{
 					"authorization":    "Bearer xxx",
 					"Content-Type":     "application/json; charset=UTF-8",
 					"Content-Encoding": "gzip",
 				},
-				URL:                    ts.URL,
-				RequestTimeout:         10 * time.Second,
-				KeepAliveIdleTimeout:   3 * time.Minute,
-				NetLimitBytesPerSecond: math.MaxInt64,
+				URL:                  ts.URL,
+				RequestTimeout:       10 * time.Second,
+				KeepAliveIdleTimeout: 3 * time.Minute,
 			}},
 			args: args{
-				data: []byte("hello world"),
+				data: "hello world",
 				url:  hostJoinPath(ts.URL, "/collector"),
 			},
 			wantErr: false,
@@ -57,7 +55,7 @@ func Test_collectorService_sendWithPath(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			c := newCollectorService(tt.fields.cfg)
-			if err := c.sendLogWithURL(tt.args.data, tt.args.url); (err != nil) != tt.wantErr {
+			if err := c.SendLogWithURL(tt.args.data, tt.args.url); (err != nil) != tt.wantErr {
 				t.Errorf("sendWithPath() error = %v, wantErr %v", err, tt.wantErr)
 			}
 		})

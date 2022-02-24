@@ -8,31 +8,19 @@
     http_listen  0.0.0.0
     http_port    2020
 
+
 [INPUT]
-    name                 tail
-    path                 /stdlog/*/*.log
-    Exclude_Path         /stdlog/fluent-bit/*
-    Tag                  eci-log
-    DB                   /erda/flb_sidecar.db
-    Buffer_Chunk_Size    1MB
-    Buffer_Max_Size      10MB
-    Skip_Long_Lines      On
-    Skip_Empty_Lines     On
-    Refresh_Interval     30
-    Rotate_Wait          600
+    name dummy
+    tag eci-log
+    dummy {"date":"2021-08-16T08:25:28.826167Z","__pri_log_path":"/sydlog/nginx/0.log","content":"2021-08-16 16:25:28.818 ERROR [gaia-requisition-runtime,ec316a26-0889-47d6-a406-4575af70a449,d5c28df2-32cc-4d7f-ab36-1c41334579c2] - [http-nio-8080-exec-377] i.t.t.exception.TrantorWebAdvice        : handleException error with request info: RequestInfo(path: [http://172.22.149.220:8080/api/internal/trantor/function], referer: [null])\n","stream":"stdout","time":"2021-08-16T08:25:28.826167874Z","offset":1366,"id":"1b220365603760de7b032a87dc1bcd70620f298cbb26399fa6b5c1e2656b963b","source":"container"}
+    samples 1
 
-    # forced: can't change
-    Path_Key             __pri_log_path
-
-    Mem_Buf_Limit        50MB
-
-    multiline.parser     cri
-
-[FILTER]
-    name                  multiline
-    match                 *
-    multiline.key_content log
-    multiline.parser      erda-multiline-java
+# pipeline job's log
+[INPUT]
+    name dummy
+    tag eci-log
+    dummy  {"date":"2021-08-16T08:25:28.826167Z","__pri_log_path":"/sydlog/nginx/0.log","content":"2021-08-16 16:25:28.818 ERROR [gaia-requisition-runtime,ec316a26-0889-47d6-a406-4575af70a449,d5c28df2-32cc-4d7f-ab36-1c41334579c2] - [http-nio-8080-exec-377] i.t.t.exception.TrantorWebAdvice        : handleException error with request info: RequestInfo(path: [http://172.22.149.220:8080/api/internal/trantor/function], referer: [null])\n","stream":"stdout","time":"2021-08-16T08:25:28.826167874Z","offset":1366,"id":"1b220365603760de7b032a87dc1bcd70620f298cbb26399fa6b5c1e2656b963b","source":"container","__tags_terminus_define_tag":"pipeline-task-0"}
+    samples 1
 
 [FILTER]
     Name            parser
@@ -87,7 +75,6 @@
     Record          __tags_msp_log_attach ${MSP_LOG_ATTACH}
     Record          __tags_pod_ip ${POD_IP}
     Record          __tags_monitor_log_collector ${MONITOR_LOG_COLLECTOR}
-
 
 # --- compatibility format block ---
 # compatibility keyword
@@ -165,31 +152,12 @@
     remove_wildcard __pri_
 
 [OUTPUT]
-    name                http
-    Match               kube.*
-    host                ${COLLECTOR_HOST}
-    port                ${COLLECTOR_PORT}
-    uri                 /api/v1/collect/logs/container
-    compress            gzip
-    format              json
-    header              Authorization Bearer ${CLUSTER_ACCESS_KEY}
-    header              X-Erda-Cluster-Key ${DICE_CLUSTER_NAME}
-    json_date_key       false
-    json_date_format    iso8601
-    worker              4
-    Retry_Limit         1000
+    name                stdout
+    Match               eci-log
+    #format              json
+
 
 [OUTPUT]
-    name                http
-    Match               erda.log.job
-    host                ${COLLECTOR_HOST}
-    port                ${COLLECTOR_PORT}
-    uri                 /api/v1/collect/logs/job
-    compress            gzip
-    format              json
-    header              Authorization Bearer ${CLUSTER_ACCESS_KEY}
-    header              X-Erda-Cluster-Key ${DICE_CLUSTER_NAME}
-    json_date_key       false
-    json_date_format    iso8601
-    worker              1
-    Retry_Limit         100
+    name stdout
+    match erda.log.job
+    #format json
