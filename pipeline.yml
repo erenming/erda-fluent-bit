@@ -38,6 +38,7 @@ stages:
           params:
             check_diceyml: false
             dice_yml: ${{ dirs.fluent-bit }}/erda.yml
+            tag_version: ${{ outputs.extract-repo-version.version }}
             image:
               fluent-bit: ${{ outputs.build-fluent-bit.image }}
               fluent-bit-app: ${{ outputs.build-fluent-bit.image }}
