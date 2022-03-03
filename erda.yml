@@ -22,6 +22,7 @@ services:
     image: fluent-bit
     envs:
       INPUT_TAIL_READ_FROM_HEAD: true
+      UPGRADE_1_4_0: 0
     resources:
       cpu: ${request_cpu:0.2}
       mem: ${request_mem:512}

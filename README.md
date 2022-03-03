@@ -18,3 +18,11 @@
 }
 ```
 - `__pri_*`: 私有的中间Key，最终会被删除
+
+## 日志模拟
+### dd
+### flog
+1. 安装：`go install github.com/mingrammer/flog@latest`
+2. 生成：
+`flog -t log -o testdata/k8s/test.log -b 1073741824 -s 10ms -w`
+生成1G大小日志`testdata/k8s/test.log`，

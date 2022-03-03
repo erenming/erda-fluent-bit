@@ -1,10 +1,19 @@
+FROM registry.erda.cloud/retag/golang:1.16.6 as gobuilder
+
+COPY . /build
+WORKDIR /build
+
+ENV GOPROXY="https://goproxy.cn"
+
+RUN make build
+
 FROM registry.erda.cloud/retag/debian:buster-slim as builder
 
 # Fluent Bit version
 ENV FLB_MAJOR 1
 ENV FLB_MINOR 8
-ENV FLB_PATCH 12
-ENV FLB_VERSION 1.8.12
+ENV FLB_PATCH 11
+ENV FLB_VERSION 1.8.11
 
 #ARG FLB_TARBALL=https://github.com/fluent/fluent-bit/archive/v$FLB_VERSION.tar.gz
 ARG FLB_TARBALL=https://erda-release.oss-cn-hangzhou.aliyuncs.com/tools/fluent-bit/fluent-bit-$FLB_VERSION.tar.gz
@@ -71,6 +80,7 @@ RUN install bin/fluent-bit /fluent-bit/bin/
 #     /fluent-bit/etc/
 
 COPY conf/ /fluent-bit/etc/
+COPY entrypoint.sh /fluent-bit/etc/
 
 COPY --from=gobuilder /build/out_erda.so /fluent-bit/bin/
 RUN ldd /fluent-bit/bin/out_erda.so
@@ -139,4 +149,4 @@ COPY --from=builder /usr/local/bin/ /usr/local/bin/
 COPY --from=builder /bin/busybox /bin/
 
 # Entry point
-CMD ["./fluent-bit/bin/fluent-bit", "-c", "/fluent-bit/etc/ds/fluent-bit.conf"]
+CMD ["/fluent-bit/etc/entrypoint.sh"]

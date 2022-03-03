@@ -15,10 +15,10 @@ trap _int SIGINT
 
 # --- init work block ---
 if [ -z ${DICE_IS_EDGE} ]; then
-    DICE_IS_EDGE=false
+    echo $DICE_IS_EDGE
 fi
 if [ -z ${COLLECTOR_URL} ]; then
-  if [ $DICE_IS_EDGE == 'false' ]; then
+  if [ $DICE_IS_EDGE == 'true' ]; then
     export COLLECTOR_URL=$COLLECTOR_PUBLIC_UR
   else
     export COLLECTOR_URL='http://'$COLLECTOR_ADDR
@@ -62,8 +62,14 @@ fi
 export COLLECTOR_PORT=$port
 export COLLECTOR_HOST=$host
 
+credential_file='/erda-cluster-credential/CLUSTER_ACCESS_KEY'
 if [ -z ${CLUSTER_ACCESS_KEY} ]; then
-    export CLUSTER_ACCESS_KEY=$(cat /erda-cluster-credential/CLUSTER_ACCESS_KEY)
+  if [ -e "$credential_file" ]; then
+    export CLUSTER_ACCESS_KEY=$(cat $credential_file)
+  else
+    echo "$credential_file must existed or specify env CLUSTER_ACCESS_KEY"
+    exit 1
+  fi
 fi
 
 echo 'COLLECTOR_PORT: '$COLLECTOR_PORT
@@ -75,8 +81,7 @@ if [ -z ${CONFIG_FILE} ]; then
 fi
 # --- init work block ---
 
-#./fluent-bit/bin/fluent-bit -c $CONFIG_FILE &
-fluent-bit -c $CONFIG_FILE &
+/fluent-bit/bin/fluent-bit -c $CONFIG_FILE &
 
 child=$!
 wait "$child"
