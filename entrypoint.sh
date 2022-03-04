@@ -14,6 +14,10 @@ trap _term SIGTERM
 trap _int SIGINT
 
 # --- init work block ---
+if [ -z ${LOG_LEVEL} ]; then
+    export LOG_LEVEL=error
+fi
+
 if [ -z ${DICE_IS_EDGE} ]; then
     echo $DICE_IS_EDGE
 fi
@@ -72,6 +76,7 @@ if [ -z ${CLUSTER_ACCESS_KEY} ]; then
   fi
 fi
 
+echo 'LOG_LEVEL: '$LOG_LEVEL
 echo 'COLLECTOR_PORT: '$COLLECTOR_PORT
 echo 'COLLECTOR_HOST: '$COLLECTOR_HOST
 echo 'CLUSTER_ACCESS_KEY: ' $CLUSTER_ACCESS_KEY
