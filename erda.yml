@@ -21,7 +21,7 @@ services:
   fluent-bit:
     image: fluent-bit
     envs:
-      INPUT_TAIL_READ_FROM_HEAD: true
+      LOG_LEVEL: error
       UPGRADE_1_4_0: 0
     resources:
       cpu: ${request_cpu:0.2}
