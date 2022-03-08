@@ -13,58 +13,23 @@ import (
 	"github.com/sirupsen/logrus"
 )
 
-const compressRatio = 0.25
-
 type Config struct {
 	RemoteConfig RemoteConfig
-
-	CompressLevel int `fluentbit:"compress_level"`
-	// environment key list
-	ContainerEnvInclude            []string      `fluentbit:"container_env_include"`
-	DockerContainerMetadataEnable  bool          `fluentbit:"docker_container_metadata_enable"`
-	DockerContainerRootPath        string        `fluentbit:"docker_container_root_path"`
-	DockerConfigSyncInterval       time.Duration `fluentbit:"docker_config_sync_interval"`
-	DockerConfigMaxExpiredDuration time.Duration `fluentbit:"docker_config_max_expired_duration"`
-
-	// 日志事件的最大个数限制
-	BatchEventLimit int `fluentbit:"batch_event_limit"`
-	// 日志内容大小总和阈值
-	BatchEventContentLimitBytes int `fluentbit:"batch_event_content_limit_bytes"`
 }
 
 type RemoteConfig struct {
-	RemoteType           string            `fluentbit:"remote_type"`
 	Headers              map[string]string `fluentbit:"headers"`
 	URL                  string            `fluentbit:"erda_ingest_url"`
-	JobPath              string            `fluentbit:"job_path"`
-	ContainerPath        string            `fluentbit:"container_path"`
+	URLFromLogLabel      string            `file:"url_from_log_label"`
 	RequestTimeout       time.Duration     `fluentbit:"request_timeout"`
 	KeepAliveIdleTimeout time.Duration     `fluentbit:"keep_alive_idle_timeout"`
 	BasicAuthUsername    string            `fluentbit:"basic_auth_username"`
 	BasicAuthPassword    string            `fluentbit:"basic_auth_password"`
-
-	// 流量限制
-	NetLimitBytesPerSecond int `fluentbit:"net_limit_bytes_per_second"`
+	GzipLevel            int               `fluentbit:"gzip_level"`
+	Format               string            `fluentbit:"format"`
 }
 
 func (cfg *Config) Init() {
-	if collectorType(cfg.RemoteConfig.RemoteType) != logAnalysis && cfg.RemoteConfig.URL == "" {
-		erdaURL := "http://" + os.Getenv("COLLECTOR_ADDR")
-		if os.Getenv("DICE_IS_EDGE") == "true" {
-			erdaURL = os.Getenv("COLLECTOR_PUBLIC_URL")
-		}
-		cfg.RemoteConfig.URL = erdaURL
-	}
-
-	cfg.RemoteConfig.Headers["Content-Type"] = "application/json; charset=UTF-8"
-	if cfg.CompressLevel > 0 {
-		cfg.RemoteConfig.Headers["Content-Encoding"] = "gzip"
-	}
-
-	if float64(cfg.BatchEventContentLimitBytes)*compressRatio > float64(cfg.RemoteConfig.NetLimitBytesPerSecond) {
-		cfg.BatchEventContentLimitBytes = int(float64(cfg.RemoteConfig.NetLimitBytesPerSecond)/compressRatio) / 2
-	}
-
 	if v := os.Getenv("LOG_LEVEL"); v != "" {
 		if lv, err := logrus.ParseLevel(v); err == nil {
 			logrus.SetLevel(lv)

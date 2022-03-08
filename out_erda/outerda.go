@@ -4,23 +4,15 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"strings"
 	"time"
 
-	"github.com/erda-project/erda-for-fluent-bit/out_erda/sources/containerfile"
 	"github.com/fluent/fluent-bit-go/output"
 	"github.com/sirupsen/logrus"
 )
 
-const metaErdaPrefix = "__meta_erda_"
-
 var (
 	ErrKeyMustExist = errors.New("entry key must exist")
 	ErrTypeInvalid  = errors.New("invalid data type")
-)
-
-const (
-	remoteLogAnalysis = "log_analysis"
 )
 
 type Event struct {
@@ -29,12 +21,9 @@ type Event struct {
 }
 
 type Output struct {
-	cfg              Config
-	meta             *metadata
-	batchContainer   *BatchSender
-	batchJob         *BatchSender
-	batchLogAnalysis *BatchSender
-	remoteService    remoteServiceInf
+	cfg            Config
+	batchLogExport *BatchSender
+	remoteService  *remoteService
 
 	cancelFunc context.CancelFunc
 }
@@ -42,72 +31,10 @@ type Output struct {
 func NewOutput(cfg Config) *Output {
 	cfg.Init()
 	logrus.Infof("cfg: %+v", cfg)
-
-	containerCollector := newCollectorService(collectorConfig{
-		Headers:                cfg.RemoteConfig.Headers,
-		URL:                    hostJoinPath(cfg.RemoteConfig.URL, cfg.RemoteConfig.ContainerPath),
-		RequestTimeout:         cfg.RemoteConfig.RequestTimeout,
-		KeepAliveIdleTimeout:   cfg.RemoteConfig.KeepAliveIdleTimeout,
-		NetLimitBytesPerSecond: cfg.RemoteConfig.NetLimitBytesPerSecond,
-		BasicAuthUsername:      cfg.RemoteConfig.BasicAuthUsername,
-		BasicAuthPassword:      cfg.RemoteConfig.BasicAuthPassword,
-		collectorType:          centralCollector,
-	})
-
-	jobCollector := newCollectorService(collectorConfig{
-		Headers:                cfg.RemoteConfig.Headers,
-		URL:                    hostJoinPath(cfg.RemoteConfig.URL, cfg.RemoteConfig.JobPath),
-		RequestTimeout:         cfg.RemoteConfig.RequestTimeout,
-		KeepAliveIdleTimeout:   cfg.RemoteConfig.KeepAliveIdleTimeout,
-		NetLimitBytesPerSecond: cfg.RemoteConfig.NetLimitBytesPerSecond,
-		BasicAuthUsername:      cfg.RemoteConfig.BasicAuthUsername,
-		BasicAuthPassword:      cfg.RemoteConfig.BasicAuthPassword,
-		collectorType:          centralCollector,
-	})
-
-	logAnalysisCollector := newCollectorService(collectorConfig{
-		Headers:                cfg.RemoteConfig.Headers,
-		URL:                    cfg.RemoteConfig.URL,
-		RequestTimeout:         cfg.RemoteConfig.RequestTimeout,
-		KeepAliveIdleTimeout:   cfg.RemoteConfig.KeepAliveIdleTimeout,
-		NetLimitBytesPerSecond: cfg.RemoteConfig.NetLimitBytesPerSecond,
-		collectorType:          logAnalysis,
-	})
-
 	return &Output{
-		cfg: cfg,
-		meta: newMetadata(metadataConfig{
-			dockerMetadataEnable: cfg.DockerContainerMetadataEnable,
-			dcfg: containerfile.Config{
-				RootPath:           cfg.DockerContainerRootPath,
-				EnvIncludeList:     cfg.ContainerEnvInclude,
-				SyncInterval:       cfg.DockerConfigSyncInterval,
-				MaxExpiredDuration: cfg.DockerConfigMaxExpiredDuration,
-			},
-		}),
-		batchContainer: NewBatchSender(batchConfig{
-			BatchEventLimit:             cfg.BatchEventLimit,
-			BatchEventContentLimitBytes: cfg.BatchEventContentLimitBytes,
-			remoteServer:                containerCollector,
-			GzipLevel:                   cfg.CompressLevel,
-		}),
-		batchJob: NewBatchSender(batchConfig{
-			BatchEventLimit:             cfg.BatchEventLimit,
-			BatchEventContentLimitBytes: cfg.BatchEventContentLimitBytes,
-			remoteServer:                jobCollector,
-			GzipLevel:                   cfg.CompressLevel,
-		}),
-		batchLogAnalysis: NewBatchSender(batchConfig{
-			BatchEventLimit:             cfg.BatchEventLimit,
-			BatchEventContentLimitBytes: cfg.BatchEventContentLimitBytes,
-			remoteServer:                logAnalysisCollector,
-			GzipLevel:                   cfg.CompressLevel,
-		}),
+		cfg:            cfg,
+		batchLogExport: NewBatchSender(newCollectorService(cfg.RemoteConfig)),
 	}
-}
-
-func (o *Output) Start() error {
-	return o.meta.Start()
 }
 
 // AddEvent accepts a Record, process and send to the buffer, flushing the buffer if it is full
@@ -122,84 +49,41 @@ func (o *Output) AddEvent(event *Event) int {
 		return output.FLB_RETRY
 	}
 
-	if o.cfg.RemoteConfig.RemoteType == remoteLogAnalysis {
-		if o.all2LogAnalysis() || o.logAnalysisEmbed(lg) {
-			err := o.batchLogAnalysis.SendLogEvent(lg)
-			if err != nil {
-				LogError("batchLogAnalysis send failed", err)
-				return output.FLB_RETRY
-			}
-		}
-	} else {
-		switch lg.Source {
-		case "job":
-			err = o.batchJob.SendLogEvent(lg)
-			if err != nil {
-				LogError("batchJob send failed", err)
-				return output.FLB_RETRY
-			}
-		default:
-			err = o.batchContainer.SendLogEvent(lg)
-			if err != nil {
-				LogError("batchContainer send failed", err)
-				return output.FLB_RETRY
-			}
-		}
+	err = o.batchLogExport.SendLogEvent(lg)
+	if err != nil {
+		LogError("batchLogExport send failed", err)
+		return output.FLB_RETRY
 	}
 
 	return output.FLB_OK
 }
 
-func (o *Output) logAnalysisEmbed(lg *LogEvent) bool {
-	return lg.logAnalysisURL != ""
-}
-
-func (o *Output) all2LogAnalysis() bool {
-	return collectorType(o.cfg.RemoteConfig.RemoteType) == logAnalysis && o.cfg.RemoteConfig.URL != ""
-}
-
 func (o *Output) Flush() error {
-	if o.cfg.RemoteConfig.RemoteType == remoteLogAnalysis {
-		err := o.batchLogAnalysis.FlushAll()
-		if err != nil {
-			return fmt.Errorf("batchLogAnalysis flush error: %w", err)
-		}
-	} else {
-		err := o.batchContainer.FlushAll()
-		if err != nil {
-			return fmt.Errorf("batchContainer flush error: %w", err)
-		}
-		err = o.batchJob.FlushAll()
-		if err != nil {
-			return fmt.Errorf("batchJob flush error: %w", err)
-		}
+	err := o.batchLogExport.FlushAll()
+	if err != nil {
+		return fmt.Errorf("batchLogExport flush error: %w", err)
 	}
 	return nil
 }
 
 func (o *Output) Reset() {
-	o.batchContainer.Reset()
-	o.batchJob.Reset()
+	o.batchLogExport.Reset()
 }
 
 func (o *Output) Process(timestamp time.Time, record map[interface{}]interface{}) (*LogEvent, error) {
-	// offset, err := getAndConvert("offset", record, uint64(0))
-	// if err != nil {
-	// 	return nil, err
-	// }
 	if logrus.IsLevelEnabled(logrus.DebugLevel) {
 		logrus.Debugf("record: %s", jsonRecord(record))
 	}
 
-	id, err := getAndConvert("id", record, nil)
+	id, err := getAndConvert("id", record, "")
 	if err != nil {
-		return nil, fmt.Errorf("record: %s, err: %w", jsonRecord(record), err)
+		return nil, fmt.Errorf("can't get id from record: %w", err)
 	}
-	stream, err := getAndConvert("stream", record, []byte("stdout"))
+	stream, err := getAndConvert("stream", record, "stdout")
 	if err != nil {
 		return nil, err
 	}
-	content, err := getAndConvert("log", record, nil)
+	content, err := getAndConvert("content", record, "")
 	if err != nil {
 		return nil, err
 	}
@@ -212,98 +96,32 @@ func (o *Output) Process(timestamp time.Time, record map[interface{}]interface{}
 		t = val
 	}
 
-	logPath := getLogPath(record)
+	tags, err := getAndConvert("tags", record, map[string]string{})
+	if err != nil {
+		LogInfo("can't get tags from record", err)
+	}
+
+	labels, err := getAndConvert("labels", record, map[string]string{})
+	if err != nil {
+		LogInfo("can't get labels from record", err)
+	}
 
 	lg := &LogEvent{
-		ID:        bs2str(id.([]byte)),
+		ID:        id.(string),
 		Source:    "container",
-		Stream:    bs2str(stream.([]byte)),
-		Content:   bs2str(stripNewLine(content.([]byte))),
+		Stream:    stream.(string),
+		Content:   content.(string),
 		Timestamp: t.UnixNano(),
-		Tags:      make(map[string]string),
-		Labels:    make(map[string]string),
+		Tags:      tags.(map[string]string),
+		Labels:    labels.(map[string]string),
 	}
-
-	err = o.enrichWithMetadata(lg, record)
-	if err != nil {
-		LogInfo("enrich metadata error. log_path: "+logPath, err)
-	}
-
 	return lg, nil
 }
 
-func stripNewLine(data []byte) []byte {
-	l := len(data)
-	if l > 0 && data[l-1] == '\n' {
-		return data[:l-1]
-	}
-	return data
-}
-
-type nestedKubernetes struct {
-	PodName        string
-	NamespaceName  string
-	PodID          string
-	DockerID       string
-	ContainerImage string
-	ContainerName  string
-}
-
-func (o *Output) enrichWithMetadata(lg *LogEvent, record map[interface{}]interface{}) error {
-	err := o.meta.EnrichMetadata(lg, &eventExtInfo{
-		containerID: lg.ID,
-		record:      record,
-	})
-	if err != nil {
-		return err
-	}
-
-	o.businessLogic(lg)
-	return nil
-}
-
-// func (o *Output) getIDFromLogPath(logPath string) string {
-// 	items := strings.Split(logPath, "/")
-// 	if o.cfg.DockerContainerIDIndex < 0 {
-// 		return items[len(items)+o.cfg.DockerContainerIDIndex]
-// 	} else {
-// 		return items[o.cfg.DockerContainerIDIndex]
-// 	}
-// }
-
-func (o *Output) businessLogic(lg *LogEvent) {
-	// compatibility for log exporter
-	for _, k := range []string{"monitor_log_output", "monitor_log_output_config"} {
-		if v, ok := lg.Tags[k]; ok {
-			lg.Labels[k] = v
-		}
-	}
-
-	// container is a job, when it's env include "TERMINUS_DEFINE_TAG"
-	if val, ok := lg.Tags["terminus_define_tag"]; ok {
-		lg.ID = val
-		lg.Source = "job"
-	}
-
-	lg.logAnalysisURL = lg.Tags["monitor_log_collector"]
-	delete(lg.Tags, "monitor_log_collector")
-
-	if v, ok := lg.Tags["request_id"]; ok {
-		lg.Tags["request-id"] = v
-	}
-
-	internalPrefix := "dice_"
-	for k, v := range lg.Tags {
-		if idx := strings.Index(k, internalPrefix); idx != -1 {
-			lg.Tags[k[len(internalPrefix):]] = v
-		}
-	}
-
-}
 
 func (o *Output) Close() error {
 	if o.cancelFunc != nil {
 		o.cancelFunc()
 	}
-	return o.meta.Close()
+	return nil
 }
