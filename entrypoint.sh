@@ -19,18 +19,19 @@ if [ -z ${LOG_LEVEL} ]; then
 fi
 
 if [ -z ${DICE_IS_EDGE} ]; then
-    echo $DICE_IS_EDGE
+    export DICE_IS_EDGE='false'
 fi
+
 if [ -z ${COLLECTOR_URL} ]; then
   if [ $DICE_IS_EDGE == 'true' ]; then
-    export COLLECTOR_URL=$COLLECTOR_PUBLIC_UR
+    export COLLECTOR_URL=$COLLECTOR_PUBLIC_URL
   else
     export COLLECTOR_URL='http://'$COLLECTOR_ADDR
   fi
 fi
 
 if [ -z ${COLLECTOR_URL} ]; then
-  echo "env COLLECTOR_URL or COLLECTOR_PUBLIC_UR or COLLECTOR_ADDR unset!"
+  echo "env COLLECTOR_URL or COLLECTOR_PUBLIC_URL or COLLECTOR_ADDR unset!"
   exit 1
 fi
 
