@@ -30,6 +30,14 @@ if [ -z ${COLLECTOR_URL} ]; then
   fi
 fi
 
+if [ -z ${MASTER_VIP_URL} ]; then
+    export MASTER_VIP_URL='https://kubernetes.default.svc:443'
+fi
+
+if [ -z ${CONFIG_FILE} ]; then
+  CONFIG_FILE=/fluent-bit/etc/ds/fluent-bit.conf
+fi
+
 if [ -z ${COLLECTOR_URL} ]; then
   echo "env COLLECTOR_URL or COLLECTOR_PUBLIC_URL or COLLECTOR_ADDR unset!"
   exit 1
@@ -67,24 +75,23 @@ fi
 export COLLECTOR_PORT=$port
 export COLLECTOR_HOST=$host
 
-credential_file='/erda-cluster-credential/CLUSTER_ACCESS_KEY'
-if [ -z ${CLUSTER_ACCESS_KEY} ]; then
-  if [ -e "$credential_file" ]; then
-    export CLUSTER_ACCESS_KEY=$(cat $credential_file)
-  else
-    echo "$credential_file must existed or specify env CLUSTER_ACCESS_KEY"
-    exit 1
-  fi
+if [ "$CONFIG_FILE" == "/fluent-bit/etc/ds/fluent-bit.conf" ]; then
+   credential_file='/erda-cluster-credential/CLUSTER_ACCESS_KEY'
+   if [ -z ${CLUSTER_ACCESS_KEY} ]; then
+   if [ -e "$credential_file" ]; then
+     export CLUSTER_ACCESS_KEY=$(cat $credential_file)
+   else
+     echo "$credential_file must existed or specify env CLUSTER_ACCESS_KEY"
+     exit 1
+   fi
+   fi
 fi
+
 
 echo 'LOG_LEVEL: '$LOG_LEVEL
 echo 'COLLECTOR_PORT: '$COLLECTOR_PORT
 echo 'COLLECTOR_HOST: '$COLLECTOR_HOST
-echo 'CLUSTER_ACCESS_KEY: ' $CLUSTER_ACCESS_KEY
 
-if [ -z ${CONFIG_FILE} ]; then
-  CONFIG_FILE=/fluent-bit/etc/ds/fluent-bit.conf
-fi
 # --- init work block ---
 
 /fluent-bit/bin/fluent-bit -c $CONFIG_FILE &

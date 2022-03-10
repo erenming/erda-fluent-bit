@@ -7,7 +7,10 @@ function add_cpuset(tag, timestamp, record)
     -- get cpuset from shared emptyDir
     local root_path = "/erda/containers/"
     --local root_path = "testdata/eci/containers/"
-    file = io.open(root_path .. cname .. "/cpuset", "r")
+    local file = io.open(root_path .. cname .. "/cpuset", "r")
+    if file == nil then
+        return -1, timestamp, new_record
+    end
     new_record["__pri_cpuset"] = file:read()
     file:close()
 
