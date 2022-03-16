@@ -35,7 +35,7 @@ if [ -z ${MASTER_VIP_URL} ]; then
 fi
 
 if [ -z ${CONFIG_FILE} ]; then
-  CONFIG_FILE=/fluent-bit/etc/ds/fluent-bit.conf
+    export CONFIG_FILE=/fluent-bit/etc/ds/fluent-bit.conf
 fi
 
 if [ -z ${COLLECTOR_URL} ]; then
