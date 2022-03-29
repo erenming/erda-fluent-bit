@@ -4,7 +4,6 @@ function add_cpuset(tag, timestamp, record)
     -- container's cpuset file path to extract containerID
     local cname = new_record["__pri_id"]
     if cname == nil then
-        print(dump(new_record))
         return -1, timestamp, new_record
     end
 
@@ -13,7 +12,6 @@ function add_cpuset(tag, timestamp, record)
     --local root_path = "testdata/eci/containers/"
     local file = io.open(root_path .. cname .. "/cpuset", "r")
     if file == nil then
-        print(dump(new_record))
         return -1, timestamp, new_record
     end
     new_record["__pri_cpuset"] = file:read()

@@ -72,6 +72,16 @@ if [ -z ${port} ]; then
     port='unknown'
   fi
 fi
+
+# tls config
+if [ -z ${OUTPUT_HTTP_TLS} ]; then
+  if [ $proto == 'https://' ]; then
+    export OUTPUT_HTTP_TLS='On'
+  else
+    export OUTPUT_HTTP_TLS='Off'
+  fi
+fi
+
 export COLLECTOR_PORT=$port
 export COLLECTOR_HOST=$host
 
@@ -91,6 +101,8 @@ fi
 echo 'LOG_LEVEL: '$LOG_LEVEL
 echo 'COLLECTOR_PORT: '$COLLECTOR_PORT
 echo 'COLLECTOR_HOST: '$COLLECTOR_HOST
+echo 'OUTPUT_HTTP_TLS: '$OUTPUT_HTTP_TLS
+echo "CONFIG_FILE: "$CONFIG_FILE
 
 # --- init work block ---
 
