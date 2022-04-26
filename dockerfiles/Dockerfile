@@ -30,6 +30,7 @@ RUN echo "deb http://mirrors.tuna.tsinghua.edu.cn/debian/ buster-backports main 
 RUN echo "deb http://mirrors.tuna.tsinghua.edu.cn/debian-security buster/updates main contrib non-free" >> /etc/apt/sources.list
 RUN true
 
+COPY filter_throttle_patch /tmp/filter_throttle_patch
 RUN apt-get update && \
     apt-get install -y --no-install-recommends \
     build-essential \
@@ -51,7 +52,8 @@ RUN apt-get update && \
     && cd tmp/ && mkdir fluent-bit \
     && tar zxfv fluent-bit.tar.gz -C ./fluent-bit --strip-components=1 \
     && cd fluent-bit/build/ \
-    && rm -rf /tmp/fluent-bit/build/*
+    && rm -rf /tmp/fluent-bit/build/* \
+    && if [ "$FLB_VERSION" = "1.8.11" ] ; then rm -rf /tmp/fluent-bit/plugins/filter_throttle/throttle.c;  rm -rf /tmp/fluent-bit/plugins/filter_throttle/throttle.h; cp /tmp/filter_throttle_patch/* /tmp/fluent-bit/plugins/filter_throttle/; fi
 
 WORKDIR /tmp/fluent-bit/build/
 RUN cmake -DFLB_RELEASE=On \

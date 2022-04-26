@@ -34,6 +34,16 @@ if [ -z ${MASTER_VIP_URL} ]; then
     export MASTER_VIP_URL='https://kubernetes.default.svc:443'
 fi
 
+if [ -z ${FLUENTBIT_THROTTLE_RATE} ]; then
+    export FLUENTBIT_THROTTLE_RATE=10000
+fi
+if [ -z ${FLUENTBIT_THROTTLE_RETAIN} ]; then
+    export FLUENTBIT_THROTTLE_RETAIN=true
+fi
+if [ -z ${FLUENTBIT_THROTTLE_PRINT_STATUS} ]; then
+    export FLUENTBIT_THROTTLE_PRINT_STATUS=false
+fi
+
 if [ -z ${CONFIG_FILE} ]; then
     export CONFIG_FILE=/fluent-bit/etc/ds/fluent-bit.conf
 fi
