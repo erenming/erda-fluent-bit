@@ -35,7 +35,7 @@ if [ -z ${MASTER_VIP_URL} ]; then
 fi
 
 if [ -z ${FLUENTBIT_THROTTLE_RATE} ]; then
-    export FLUENTBIT_THROTTLE_RATE=10000
+    export FLUENTBIT_THROTTLE_RATE=1000
 fi
 if [ -z ${FLUENTBIT_THROTTLE_RETAIN} ]; then
     export FLUENTBIT_THROTTLE_RETAIN=true
