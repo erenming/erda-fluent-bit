@@ -95,17 +95,18 @@ fi
 export COLLECTOR_PORT=$port
 export COLLECTOR_HOST=$host
 
-if [ "$CONFIG_FILE" == "/fluent-bit/etc/ds/fluent-bit.conf" ]; then
-   credential_file='/erda-cluster-credential/CLUSTER_ACCESS_KEY'
-   if [ -z ${CLUSTER_ACCESS_KEY} ]; then
-   if [ -e "$credential_file" ]; then
-     export CLUSTER_ACCESS_KEY=$(cat $credential_file)
-   else
-     echo "$credential_file must existed or specify env CLUSTER_ACCESS_KEY"
-     exit 1
-   fi
-   fi
-fi
+# TODO. use basic auth temporarily
+#if [ "$CONFIG_FILE" == "/fluent-bit/etc/ds/fluent-bit.conf" ]; then
+#   credential_file='/erda-cluster-credential/CLUSTER_ACCESS_KEY'
+#   if [ -z ${CLUSTER_ACCESS_KEY} ]; then
+#   if [ -e "$credential_file" ]; then
+#     export CLUSTER_ACCESS_KEY=$(cat $credential_file)
+#   else
+#     echo "$credential_file must existed or specify env CLUSTER_ACCESS_KEY"
+#     exit 1
+#   fi
+#   fi
+#fi
 
 
 echo 'LOG_LEVEL: '$LOG_LEVEL
