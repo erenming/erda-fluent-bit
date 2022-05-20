@@ -7,7 +7,7 @@ ENV GOPROXY="https://goproxy.cn"
 
 RUN make build
 
-FROM fluent/fluent-bit:1.9.3-debug
+FROM registry.erda.cloud/retag/fluent-bit:1.9.3-debug
 
 COPY conf/ /fluent-bit/etc/
 COPY entrypoint.sh /fluent-bit/etc/
