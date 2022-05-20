@@ -26,7 +26,7 @@ services:
       COLLECTOR_AUTH_USERNAME: collector
     resources:
       cpu: ${request_cpu:0.2}
-      mem: ${request_mem:512}
+      mem: ${request_mem:1024}
       max_cpu: 1
       max_mem: 1024
       network:
@@ -41,10 +41,11 @@ services:
       labels:
         GROUP: spot-v2
     health_check:
-      http: {}
-      exec:
-        cmd: ps aux | grep fluent-bit || exit 1
+      http:
+        port: 2020
+        path: /
         duration: 120
+
 addons:
   infos:
     plan: "custom:basic"
