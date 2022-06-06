@@ -90,7 +90,6 @@ func (o *Output) Process(timestamp time.Time, record map[interface{}]interface{}
 
 	var t time.Time
 	if val, err := getTime(record); err != nil {
-		LogInfo("cannot get time from record", err)
 		t = timestamp
 	} else {
 		t = val
