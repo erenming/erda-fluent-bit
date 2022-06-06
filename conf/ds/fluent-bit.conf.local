@@ -10,7 +10,6 @@
 
     storage.path            ./xxx
     storage.type filesystem
-    storage.total_limit_size 1G
 
 [INPUT]
     name                 tail
@@ -29,13 +28,11 @@
 
 [FILTER]
     Name                   multiline
-    match                  *
+    match                  kube.*
     multiline.key_content  log
     multiline.parser       java
-    buffer                 On
-    emitter_storage.type   filesystem
-    emitter_name           multiline-log
     flush_ms               500
+    emitter_mem_buf_limit  100MB
 
 
 [OUTPUT]
