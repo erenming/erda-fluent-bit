@@ -4,7 +4,6 @@ import (
 	"fmt"
 
 	jsoniter "github.com/json-iterator/go"
-	"github.com/sirupsen/logrus"
 )
 
 var (
@@ -75,8 +74,6 @@ func (bs *BatchSender) flush(data []*LogEvent) error {
 	if rsc := bs.remoteServer.cfg; rsc.URL == "" && rsc.URLFromLogLabel != "" {
 		u = data[0].Labels[rsc.URLFromLogLabel]
 	}
-	logrus.Infof("cfg: %+v", bs.remoteServer.cfg)
-	logrus.Infof("url: %s", u)
 	err := bs.remoteServer.SendLogWithURL(bs.batchLogEvent, u)
 	if err != nil {
 		return fmt.Errorf("send remote: %w", err)
