@@ -2,10 +2,13 @@ package outerda
 
 import (
 	"fmt"
+	"os"
 	"strings"
 
 	"github.com/erda-project/erda-for-fluent-bit/out_erda/sources/containerfile"
 )
+
+const diceClusterName = "DICE_CLUSTER_NAME"
 
 type metadata struct {
 	dockerConfigMeta *containerfile.ContainerInfoCenter
@@ -55,6 +58,12 @@ func (md *metadata) Start() error {
 }
 
 func (md *metadata) EnrichMetadata(lg *LogEvent, ext *eventExtInfo) error {
+	// default
+	if v, ok := os.LookupEnv(diceClusterName); ok {
+		lg.Tags["dice_cluster_name"] = v
+		lg.Tags["cluster_name"] = v
+	}
+
 	if ext.record != nil {
 		md.enrichWithErdaMetadata(lg, ext.record)
 	}
