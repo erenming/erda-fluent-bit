@@ -14,6 +14,10 @@ trap _term SIGTERM
 trap _int SIGINT
 
 # --- init work block ---
+if [ -z ${FLUENTBIT_FILTER_MULTILINE_MEM_BUF_LIMIT} ]; then
+    export FLUENTBIT_FILTER_MULTILINE_MEM_BUF_LIMIT='300MB'
+fi
+
 if [ -z ${FLUENTBIT_INPUT_TAIL_EXCLUDE_PATH} ]; then
     export FLUENTBIT_INPUT_TAIL_EXCLUDE_PATH='/var/log/containers/*fluent-bit*.log'
 fi
