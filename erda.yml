@@ -26,7 +26,7 @@ services:
       COLLECTOR_AUTH_USERNAME: collector
     resources:
       cpu: ${request_cpu:0.2}
-      mem: ${request_mem:1024}
+      mem: ${request_mem:300}
       max_cpu: 1
       max_mem: 1024
       network:
