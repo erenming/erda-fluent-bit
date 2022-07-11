@@ -2,39 +2,15 @@
     flush        0.5
     daemon       Off
     grace        5
-    log_level    info
+    log_level    debug
     parsers_file parsers.conf
     http_server  On
     http_listen  0.0.0.0
     http_port    2020
 
-    storage.path            ./xxx
-    storage.type filesystem
-
-[INPUT]
-    name                 tail
-    path                 loggen/testlog.log
-    #path                 testdata/k8s/*.log
-    DB                   flb_k8s.db
-    Tag                  kube.*
-    read_from_head       true
-    Buffer_Chunk_Size    1MB
-    Buffer_Max_Size      10MB
-    Refresh_Interval     30
-    Rotate_Wait          60
-
-    Mem_Buf_Limit        300MB
-    multiline.parser     docker, cri
-
-[FILTER]
-    Name                   multiline
-    match                  kube.*
-    multiline.key_content  log
-    multiline.parser       java
-    flush_ms               500
-    emitter_mem_buf_limit  100MB
-
+@include ${INCLUDE_RUNTIME_CONF}
 
 [OUTPUT]
-    name null
+    name stdout
     match *
+    format json_lines

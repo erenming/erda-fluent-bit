@@ -14,9 +14,7 @@ trap _term SIGTERM
 trap _int SIGINT
 
 # --- init work block ---
-if [ -z ${FLUENTBIT_FILTER_MULTILINE_MEM_BUF_LIMIT} ]; then
-    export FLUENTBIT_FILTER_MULTILINE_MEM_BUF_LIMIT='300MB'
-fi
+
 
 if [ -z ${FLUENTBIT_INPUT_TAIL_EXCLUDE_PATH} ]; then
     export FLUENTBIT_INPUT_TAIL_EXCLUDE_PATH='/var/log/containers/*fluent-bit*.log'
@@ -53,8 +51,23 @@ if [ -z ${FLUENTBIT_THROTTLE_PRINT_STATUS} ]; then
 fi
 
 if [ -z ${CONFIG_FILE} ]; then
-    export CONFIG_FILE=/fluent-bit/etc/ds/fluent-bit.conf
+    export CONFIG_FILE=conf/ds/fluent-bit.conf
 fi
+
+# select runtime's specific config
+if [ -z ${DICE_CONTAINER_RUNTIME} ]; then
+    export DICE_CONTAINER_RUNTIME=docker
+fi
+# work around issue: https://github.com/fluent/fluent-bit/issues/2020
+if [ "$DICE_CONTAINER_RUNTIME" == docker ]; then
+    sed -i -- 's/${INCLUDE_RUNTIME_CONF}/docker-runtime.conf/g' $CONFIG_FILE
+elif [ "$DICE_CONTAINER_RUNTIME" == containerd ]; then
+    sed -i -- 's/${INCLUDE_RUNTIME_CONF}/cri-runtime.conf/g' $CONFIG_FILE
+else
+    echo "invaild DICE_CONTAINER_RUNTIME=$DICE_CONTAINER_RUNTIME"
+    exit 1
+fi
+
 
 if [ -z ${COLLECTOR_URL} ]; then
   echo "env COLLECTOR_URL or COLLECTOR_PUBLIC_URL or COLLECTOR_ADDR unset!"

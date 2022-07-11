@@ -32,7 +32,7 @@ services:
       network:
         mode: container
     binds:
-      - ${docker_data_root:/var/lib/docker}/containers:${docker_data_root:/var/lib/docker}/containers:ro
+      - ${docker_data_root:/var/lib/docker}/containers:/var/lib/docker/containers:ro
       - ${platform_data_root:/data}/spot-v2/fluent-bit:/data/spot/fluent-bit:rw
       - /var/log:/var/log:ro
     deployments:
