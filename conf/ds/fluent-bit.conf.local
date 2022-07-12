@@ -2,15 +2,33 @@
     flush        0.5
     daemon       Off
     grace        5
-    log_level    debug
+    log_level    info
     parsers_file parsers.conf
     http_server  On
     http_listen  0.0.0.0
     http_port    2020
 
-@include ${INCLUDE_RUNTIME_CONF}
+[INPUT]
+    name                 tail
+    path                 ./loggen/testlog.log
+    DB                   ./flb_k8s.db
+    Tag                  kube.*
+    Read_From_Head       true
+    Buffer_Chunk_Size    1MB
+    Buffer_Max_Size      10MB
+    Skip_Long_Lines      On
+    Skip_Empty_Lines     On
+    Refresh_Interval     30
+    Rotate_Wait          60
+    DB.locking           true
+    DB.journal_mode      WAL
+    Mem_Buf_Limit        300MB
+
+    Docker_Mode          On
+    Docker_Mode_Flush    3
+    Docker_Mode_Parser   docker_firstline
+    Parser               docker
 
 [OUTPUT]
-    name stdout
+    name file
     match *
-    format json_lines

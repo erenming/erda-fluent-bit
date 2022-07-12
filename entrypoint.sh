@@ -51,7 +51,7 @@ if [ -z ${FLUENTBIT_THROTTLE_PRINT_STATUS} ]; then
 fi
 
 if [ -z ${CONFIG_FILE} ]; then
-    export CONFIG_FILE=conf/ds/fluent-bit.conf
+    export CONFIG_FILE=/fluent-bit/etc/ds/fluent-bit.conf
 fi
 
 # select runtime's specific config
