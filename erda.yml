@@ -31,6 +31,10 @@ services:
       max_mem: 1024
       network:
         mode: container
+    ports:
+      - port: 2020
+        protocol: "TCP"
+        l4_protocol: "TCP"
     binds:
       - ${docker_data_root:/var/lib/docker}/containers:${docker_data_root:/var/lib/docker}/containers:ro
       - ${platform_data_root:/data}/spot-v2/fluent-bit:/data/spot/fluent-bit:rw
