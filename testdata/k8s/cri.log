@@ -6,3 +6,28 @@
 2021-12-01T17:55:56.027213252+08:00 stderr F 2021-08-16 16:25:28.818 ERROR [gaia-requisition-runtime,ec316a26-0889-47d6-a406-4575af70a449,d5c28df2-32cc-4d7f-ab36-1c41334579c2] - [http-nio-8080-exec-377] i.t.t.exception.TrantorWebAdvice        : handleException error with request info: RequestInfo(path: [], referer: [null])
 2021-12-01T17:55:56.027473295+08:00 stderr F [INFO] hello world
 2021-12-01T17:55:56.027484765+08:00 stderr F [INFO] hello world
+2022-08-12T07:30:44.256843003Z stdout F fetch mode
+2022-08-12T07:30:44.256880594Z stdout F Initialized empty Git repository in /.pipeline/container/context/repo/.git/
+2022-08-12T07:30:44.84169001Z stdout F Note: switching to 'FETCH_HEAD'.
+2022-08-12T07:30:44.841785035Z stdout F
+2022-08-12T07:30:44.841848956Z stdout F You are in 'detached HEAD' state. You can look around, make experimental
+2022-08-12T07:30:44.841922471Z stdout F changes and commit them, and you can discard any commits you make in this
+2022-08-12T07:30:44.842047234Z stdout F state without impacting any branches by switching back to a branch.
+2022-08-12T07:30:44.84212016Z stdout F
+2022-08-12T07:30:44.842126582Z stdout F If you want to create a new branch to retain commits you create, you may
+2022-08-12T07:30:44.842130678Z stdout F do so (now or later) by using -c with the switch command. Example:
+2022-08-12T07:30:44.842134517Z stdout F
+2022-08-12T07:30:44.842138385Z stdout F   git switch -c <new-branch-name>
+2022-08-12T07:30:44.842146096Z stdout F
+2022-08-12T07:30:44.842149874Z stdout F Or undo this operation with:
+2022-08-12T07:30:44.842154649Z stdout F
+2022-08-12T07:30:44.842158663Z stdout F   git switch -
+2022-08-12T07:30:44.842162666Z stdout F
+2022-08-12T07:30:44.84216647Z stdout F Turn off this advice by setting config variable advice.detachedHead to false
+2022-08-12T07:30:44.842183242Z stdout F
+2022-08-12T07:30:44.842187689Z stdout F HEAD is now at 441aac9 Update mvn-yml
+2022-08-12T07:30:44.842202316Z stdout F fetch: Fetching reference HEAD
+2022-08-12T07:30:44.842206337Z stdout F 441aac9 Update mvn-yml
+2022-08-12T07:30:45.342581408Z stdout F
+2022-08-12T07:30:45.342638669Z stderr F
+2021-12-01T17:55:56.027484765+08:00 stderr F [INFO] hello world
