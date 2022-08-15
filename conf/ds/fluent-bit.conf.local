@@ -10,7 +10,7 @@
 
 [INPUT]
     name                 tail
-    path                 ./loggen/testlog.log
+    path                 ./testdata/k8s/cri.log
     DB                   ./flb_k8s.db
     Tag                  kube.*
     Read_From_Head       true
@@ -26,9 +26,23 @@
 
     Docker_Mode          On
     Docker_Mode_Flush    3
-    Docker_Mode_Parser   docker_firstline
-    Parser               docker
+    Docker_Mode_Parser   cri_firstline
+    Parser               cri
+
+[FILTER]
+    name modify
+    match *
+    add __pri_terminus_define_tag pipeline-task-1
+    add source container
+    add id asdfkjasdlfkjasljdfasdf
+
+[FILTER]
+    name modify
+    match kube.*
+    condition Key_value_matches __pri_terminus_define_tag a*
+    hard_copy __pri_terminus_define_tag id
+    set source job
 
 [OUTPUT]
-    name file
+    name stdout
     match *
