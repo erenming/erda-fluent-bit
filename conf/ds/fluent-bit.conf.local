@@ -24,10 +24,14 @@
     DB.journal_mode      WAL
     Mem_Buf_Limit        300MB
 
-    Docker_Mode          On
-    Docker_Mode_Flush    3
-    Docker_Mode_Parser   cri_firstline
     Parser               cri
+
+[FILTER]
+    Name                   multiline
+    match                  kube.*
+    multiline.parser       java
+    multiline.key_content  log
+    buffer                 off
 
 [FILTER]
     name modify
