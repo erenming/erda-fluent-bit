@@ -43,10 +43,27 @@
 [FILTER]
     name modify
     match kube.*
-    condition Key_value_matches __pri_terminus_define_tag a*
+    condition Key_value_matches __pri_terminus_define_tag .+
     hard_copy __pri_terminus_define_tag id
     set source job
 
-[OUTPUT]
-    name stdout
+# remove private kv
+[FILTER]
+    name modify
     match *
+    remove_wildcard __pri_
+
+[OUTPUT]
+    name                http
+    Match               kube.*
+    host                ${COLLECTOR_HOST}
+    port                ${COLLECTOR_PORT}
+    uri                 /collect/logs-all
+    compress            gzip
+    format              json
+    http_user           ${COLLECTOR_AUTH_USERNAME}
+    http_passwd         ${COLLECTOR_AUTH_PASSWORD}
+    json_date_key       false
+    json_date_format    iso8601
+    Retry_Limit         100
+    log_response_payload false
